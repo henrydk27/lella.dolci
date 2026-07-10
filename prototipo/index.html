@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lella Dolci — Confeitaria Artesanal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500;1,9..144,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --wine: #7A1E2B;
+    --wine-dark: #4F1420;
+    --honey: #D9A62E;
+    --honey-light: #F0CB6C;
+    --cocoa: #3B2416;
+    --paper: #FBF3E7;
+    --paper-soft: #F3E7D5;
+    --sage: #6E7A4F;
+    --cream-text: #FFF8EC;
+    --shadow: 0 12px 32px rgba(59, 36, 22, 0.14);
+    --radius-lg: 28px;
+    --radius-md: 18px;
+  }
+
+  *{ box-sizing: border-box; margin:0; padding:0; }
+
+  html{ scroll-behavior: smooth; }
+
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior: auto; }
+    *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
+
+  body{
+    background: var(--paper);
+    color: var(--cocoa);
+    font-family: 'Manrope', sans-serif;
+    line-height: 1.55;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .display{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--wine-dark);
+  }
+
+  a{ color: inherit; text-decoration: none; }
+
+  img, svg{ display:block; max-width: 100%; }
+
+  .wrap{
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  :focus-visible{
+    outline: 3px solid var(--honey);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* ---------- SEAL / STAMP MOTIF ---------- */
+  .seal-divider{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 14px;
+    margin: 0 auto;
+    width: fit-content;
+    color: var(--honey);
+  }
+  .seal-divider svg{ width: 22px; height: 22px; }
+  .seal-divider .line{
+    width: 60px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--honey), transparent);
+  }
+
+  /* ---------- HEADER ---------- */
+  header{
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(251, 243, 231, 0.88);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(59,36,22,0.08);
+  }
+  .nav{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 18px 0;
+  }
+  .logo{
+    display:flex; align-items:center; gap:10px;
+    font-family:'Fraunces', serif;
+    font-weight:600; font-size: 1.5rem;
+    color: var(--wine-dark);
+  }
+  .logo .seal-mark{ width: 34px; height:34px; flex-shrink:0; }
+  .nav-links{
+    display:flex; gap: 32px; align-items:center;
+    font-weight: 600; font-size: 0.95rem;
+  }
+  .nav-links a{
+    position:relative; padding: 4px 0;
+    color: var(--cocoa);
+  }
+  .nav-links a::after{
+    content:''; position:absolute; left:0; bottom:-2px;
+    width:0; height:2px; background: var(--wine);
+    transition: width 0.25s ease;
+  }
+  .nav-links a:hover::after{ width:100%; }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding: 12px 24px;
+    background: var(--wine);
+    color: var(--cream-text);
+    border-radius: 999px;
+    font-weight: 700; font-size: 0.92rem;
+    border: none; cursor:pointer;
+    box-shadow: 0 8px 20px rgba(122,30,43,0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+  .btn:hover{ transform: translateY(-2px); background: var(--wine-dark); box-shadow: 0 12px 26px rgba(122,30,43,0.34); }
+  .btn.ghost{
+    background: transparent; color: var(--wine-dark);
+    border: 2px solid var(--wine-dark);
+    box-shadow:none; padding: 10px 22px;
+  }
+  .btn.ghost:hover{ background: var(--wine-dark); color: var(--cream-text); }
+  .mobile-toggle{ display:none; background:none; border:none; cursor:pointer; }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    position: relative;
+    padding: 96px 0 110px;
+    overflow: hidden;
+  }
+  .hero::before{
+    content:'';
+    position:absolute; top:-120px; right:-160px;
+    width: 520px; height:520px; border-radius:50%;
+    background: radial-gradient(circle, var(--honey-light) 0%, transparent 70%);
+    opacity: 0.55;
+  }
+  .hero-grid{
+    display:grid; grid-template-columns: 1.1fr 0.9fr;
+    gap: 60px; align-items:center;
+    position:relative; z-index:2;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-weight:700; font-size:0.8rem; letter-spacing:0.08em; text-transform:uppercase;
+    color: var(--wine);
+    background: rgba(122,30,43,0.08);
+    padding: 7px 16px; border-radius:999px;
+    margin-bottom: 22px;
+  }
+  .hero h1{
+    font-size: clamp(2.6rem, 5vw, 4.1rem);
+    line-height: 1.04;
+    margin-bottom: 22px;
+  }
+  .hero h1 em{
+    font-style: italic; color: var(--wine);
+  }
+  .hero p.lead{
+    font-size: 1.15rem; color: #5C4432;
+    max-width: 480px; margin-bottom: 34px;
+  }
+  .hero-actions{ display:flex; gap:16px; flex-wrap:wrap; }
+
+  .hero-art{ position:relative; }
+  .hero-art .jar-wrap{
+    background: var(--wine);
+    border-radius: var(--radius-lg);
+    padding: 40px;
+    position:relative;
+    box-shadow: var(--shadow);
+    transform: rotate(2deg);
+  }
+  .hero-art svg{ width:100%; height:auto; }
+  .floating-badge{
+    position:absolute; bottom:-26px; left:-26px;
+    background: var(--paper);
+    border-radius: 50%;
+    width:112px; height:112px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: var(--shadow);
+    text-align:center;
+    transform: rotate(-8deg);
+    animation: float 4.5s ease-in-out infinite;
+  }
+  @keyframes float{
+    0%,100%{ transform: rotate(-8deg) translateY(0); }
+    50%{ transform: rotate(-8deg) translateY(-8px); }
+  }
+  .floating-badge span{
+    font-family:'Fraunces', serif; font-weight:600; font-size:0.78rem; color:var(--wine-dark); line-height:1.2;
+  }
+
+  /* ---------- DIFERENCIAIS ---------- */
+  .diferenciais{ padding: 90px 0; }
+  .section-head{ text-align:center; max-width: 620px; margin: 0 auto 56px; }
+  .section-head .seal-divider{ margin-bottom: 18px; }
+  .section-head h2{ font-size: clamp(1.9rem, 3.4vw, 2.6rem); margin-bottom: 14px; }
+  .section-head p{ color:#5C4432; font-size: 1.05rem; }
+
+  .dif-grid{
+    display:grid; grid-template-columns: repeat(3, 1fr); gap: 28px;
+  }
+  .dif-card{
+    background: var(--paper-soft);
+    border-radius: var(--radius-md);
+    padding: 34px 28px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .dif-card:hover{ transform: translateY(-6px); box-shadow: var(--shadow); }
+  .dif-card .icon{
+    width:52px; height:52px; margin-bottom:18px;
+    color: var(--wine);
+  }
+  .dif-card h3{ font-size:1.2rem; margin-bottom:10px; }
+  .dif-card p{ color:#5C4432; font-size:0.95rem; }
+
+  /* ---------- PRODUTOS ---------- */
+  .produtos{ padding: 90px 0; background: var(--wine-dark); color: var(--cream-text); position:relative; }
+  .produtos .section-head h2{ color: var(--cream-text); }
+  .produtos .section-head p{ color: rgba(255,248,236,0.72); }
+  .produtos .seal-divider{ color: var(--honey); }
+
+  .prod-grid{
+    display:grid; grid-template-columns: repeat(3, 1fr); gap: 26px;
+  }
+  .prod-card{
+    background: rgba(255,248,236,0.05);
+    border: 1px solid rgba(255,248,236,0.14);
+    border-radius: var(--radius-md);
+    padding: 30px 26px 26px;
+    transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+  }
+  .prod-card:hover{
+    transform: translateY(-6px);
+    background: rgba(255,248,236,0.09);
+    border-color: var(--honey);
+  }
+  .prod-card .icon-wrap{
+    width:64px; height:64px; border-radius:50%;
+    background: var(--honey);
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom: 20px;
+  }
+  .prod-card .icon-wrap svg{ width:34px; height:34px; color: var(--wine-dark); }
+  .prod-card h3{ color: var(--cream-text); font-size:1.25rem; margin-bottom:8px; }
+  .prod-card p{ color: rgba(255,248,236,0.68); font-size:0.92rem; }
+  .prod-card .tag{
+    display:inline-block; margin-top:14px;
+    font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+    color: var(--honey);
+    border: 1px solid rgba(217,166,46,0.4);
+    padding: 5px 12px; border-radius:999px;
+  }
+
+  /* ---------- FIDELIDADE ---------- */
+  .fidelidade{ padding: 100px 0; }
+  .fid-grid{
+    display:grid; grid-template-columns: 0.95fr 1.05fr; gap: 60px; align-items:center;
+  }
+  .fid-copy .section-head{ text-align:left; margin: 0 0 28px; }
+  .fid-copy .seal-divider{ justify-content:flex-start; }
+  .fid-copy ul{ list-style:none; margin: 26px 0 32px; display:flex; flex-direction:column; gap:14px; }
+  .fid-copy li{ display:flex; gap:12px; align-items:flex-start; font-size:0.98rem; color:#5C4432; }
+  .fid-copy li svg{ width:20px; height:20px; flex-shrink:0; margin-top:2px; color: var(--wine); }
+
+  .card-demo{
+    background: linear-gradient(150deg, var(--wine) 0%, var(--wine-dark) 100%);
+    border-radius: var(--radius-lg);
+    padding: 36px;
+    box-shadow: var(--shadow);
+    color: var(--cream-text);
+    position:relative;
+  }
+  .card-demo .card-top{
+    display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 30px;
+  }
+  .card-demo .card-brand{ font-family:'Fraunces', serif; font-weight:600; font-size:1.3rem; }
+  .card-demo .card-sub{ font-size:0.75rem; letter-spacing:0.08em; text-transform:uppercase; color: var(--honey); margin-top:4px; }
+  .stamps{
+    display:grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 26px;
+  }
+  .stamp{
+    aspect-ratio: 1; border-radius:50%;
+    border: 2px dashed rgba(255,248,236,0.35);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    background: transparent;
+    transition: all 0.25s ease;
+  }
+  .stamp svg{ width:60%; height:60%; opacity:0; transform: scale(0.4) rotate(-25deg); transition: all 0.3s ease; color: var(--honey); }
+  .stamp.filled{
+    border-style: solid; border-color: var(--honey);
+    background: rgba(217,166,46,0.12);
+  }
+  .stamp.filled svg{ opacity:1; transform: scale(1) rotate(0deg); }
+  .card-foot{ display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; }
+  .card-foot .progress-text{ color: rgba(255,248,236,0.78); }
+  .card-foot button{
+    background: var(--honey); color: var(--wine-dark); border:none;
+    font-weight:700; font-size:0.8rem; padding: 8px 16px; border-radius:999px; cursor:pointer;
+  }
+  .card-hint{ font-size:0.78rem; color: rgba(255,248,236,0.5); margin-top:16px; text-align:center; }
+
+  /* ---------- CONTATO / FOOTER ---------- */
+  .contato{
+    padding: 90px 0 50px; text-align:center;
+  }
+  .contato h2{ font-size: clamp(1.9rem, 3.4vw, 2.6rem); margin-bottom:16px; }
+  .contato p{ color:#5C4432; max-width:520px; margin: 0 auto 32px; font-size:1.05rem; }
+  .contato-actions{ display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
+
+  footer{
+    border-top: 1px solid rgba(59,36,22,0.1);
+    padding: 30px 0; text-align:center;
+    font-size:0.85rem; color:#5C4432;
+  }
+  footer .seal-divider{ margin-bottom:16px; }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 880px){
+    .nav-links{ display:none; }
+    .mobile-toggle{ display:block; }
+    .hero-grid{ grid-template-columns: 1fr; }
+    .hero{ padding: 60px 0 80px; text-align:center; }
+    .hero p.lead{ margin-left:auto; margin-right:auto; }
+    .hero-actions{ justify-content:center; }
+    .hero-art{ margin-top: 40px; }
+    .floating-badge{ left: 50%; transform: translateX(-50%) rotate(-6deg); bottom:-22px; }
+    .dif-grid, .prod-grid{ grid-template-columns: 1fr; }
+    .fid-grid{ grid-template-columns: 1fr; }
+    .fid-copy .section-head, .fid-copy ul{ text-align:left; }
+  }
+</style>
+</head>
+<body>
+
+<!-- reusable seal SVG (used as favicon-like mark + divider) -->
+<header>
+  <div class="wrap nav">
+    <a href="#" class="logo">
+      <svg class="seal-mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="18" fill="#7A1E2B"/>
+        <circle cx="20" cy="20" r="18" stroke="#D9A62E" stroke-width="1.5" stroke-dasharray="2 3"/>
+        <path d="M13 22c1.5-6 4-9 7-9s5.5 3 7 9" stroke="#F0CB6C" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+        <circle cx="20" cy="20" r="3" fill="#F0CB6C"/>
+      </svg>
+      Lella Dolci
+    </a>
+    <nav class="nav-links">
+      <a href="#produtos">Produtos</a>
+      <a href="#diferenciais">Diferenciais</a>
+      <a href="#fidelidade">Fidelidade</a>
+      <a href="#contato">Contato</a>
+    </nav>
+    <a href="#contato" class="btn">Fazer pedido</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">Confeitaria artesanal</span>
+      <h1>Doce feito com as mãos, <em>nunca</em> com fábrica.</h1>
+      <p class="lead">Geleias, pães de mel, bolos e brigadeiros preparados um a um, sem nada industrializado. Da nossa cozinha para a sua mesa — com o carinho de sempre.</p>
+      <div class="hero-actions">
+        <a href="#produtos" class="btn">Ver produtos</a>
+        <a href="#fidelidade" class="btn ghost">Conhecer o cartão fidelidade</a>
+      </div>
+    </div>
+    <div class="hero-art">
+      <div class="jar-wrap">
+        <svg viewBox="0 0 320 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- jam jar illustration -->
+          <rect x="70" y="120" width="180" height="180" rx="24" fill="#F0CB6C"/>
+          <rect x="70" y="120" width="180" height="60" fill="#D9A62E"/>
+          <rect x="100" y="70" width="120" height="55" rx="10" fill="#4F1420"/>
+          <rect x="90" y="60" width="140" height="20" rx="10" fill="#3B2416"/>
+          <rect x="110" y="190" width="100" height="80" rx="8" fill="#FBF3E7" opacity="0.9"/>
+          <text x="160" y="235" font-family="Fraunces, serif" font-size="15" fill="#7A1E2B" text-anchor="middle" font-weight="600">Lella</text>
+          <text x="160" y="252" font-family="Fraunces, serif" font-size="11" fill="#7A1E2B" text-anchor="middle">Dolci</text>
+          <circle cx="255" cy="95" r="5" fill="#F0CB6C"/>
+          <circle cx="270" cy="115" r="3" fill="#F0CB6C"/>
+        </svg>
+      </div>
+      <div class="floating-badge">
+        <span>100%<br>artesanal</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="diferenciais" id="diferenciais">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="seal-divider">
+        <div class="line"></div>
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M8 12l2.5 2.5L16 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="line"></div>
+      </div>
+      <h2>Por que Lella Dolci</h2>
+      <p>Cada doce carrega o mesmo compromisso: qualidade de verdade, do primeiro ao último ingrediente.</p>
+    </div>
+    <div class="dif-grid">
+      <div class="dif-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M12 3c-3 3-5 6-5 9a5 5 0 0010 0c0-3-2-6-5-9z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3>100% artesanal</h3>
+        <p>Nada de fábrica ou industrializado — cada receita é feita à mão, em pequenos lotes, do jeito tradicional.</p>
+      </div>
+      <div class="dif-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4v10l-8 4-8-4V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 7l8 4 8-4M12 11v10" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        <h3>Para todo mundo</h3>
+        <p>Sabores clássicos e criativos pensados para agradar qualquer público, em qualquer ocasião.</p>
+      </div>
+      <div class="dif-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.35-9.5-8.5C.7 8.8 2.6 5 6.2 5c2 0 3.3 1.1 4.8 3 1.5-1.9 2.8-3 4.8-3 3.6 0 5.5 3.8 3.7 7.5C19 16.65 12 21 12 21z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        <h3>Feito com carinho</h3>
+        <p>Cada geleia, bolo e brigadeiro é preparado pensando em quem vai receber — sempre com atenção aos detalhes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="produtos" id="produtos">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="seal-divider">
+        <div class="line"></div>
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M8 12l2.5 2.5L16 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="line"></div>
+      </div>
+      <h2>Nossos doces</h2>
+      <p>Uma vitrine com o que fazemos de melhor. Fotos reais dos seus produtos entram no lugar destes ícones assim que estiverem prontas.</p>
+    </div>
+    <div class="prod-grid">
+
+      <div class="prod-card">
+        <div class="icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M8 3h8v3H8V3z" stroke="currentColor" stroke-width="1.6"/><path d="M7 6h10l1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L7 6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 12h8" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+        <h3>Geleia de pimenta</h3>
+        <p>Doce com um toque picante, perfeita para queijos e tábuas — surpreendente do primeiro ao último gole de sabor.</p>
+        <span class="tag">Artesanal</span>
+      </div>
+
+      <div class="prod-card">
+        <div class="icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="14" rx="8" ry="6" stroke="currentColor" stroke-width="1.6"/><path d="M6 12c1-3 3-5 6-5s5 2 6 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Pão de mel</h3>
+        <p>Macio, molhadinho e coberto de chocolate — a receita clássica que nunca sai de moda.</p>
+        <span class="tag">Clássico</span>
+      </div>
+
+      <div class="prod-card">
+        <div class="icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 14h16v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4z" stroke="currentColor" stroke-width="1.6"/><path d="M4 14c0-4 4-8 8-8s8 4 8 8" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="5" r="1.4" fill="currentColor"/></svg>
+        </div>
+        <h3>Bolo bombom red velvet</h3>
+        <p>Massa aveludada e vermelha com recheio cremoso — nosso bolo mais pedido para celebrar.</p>
+        <span class="tag">Best-seller</span>
+      </div>
+
+      <div class="prod-card">
+        <div class="icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="14" r="3.2" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="10" r="3.2" stroke="currentColor" stroke-width="1.6"/><circle cx="14" cy="17" r="2.4" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+        <h3>Brigadeiros</h3>
+        <p>Diversos sabores, sempre enrolados na hora. Perfeitos para festas ou para adoçar o dia a dia.</p>
+        <span class="tag">Vários sabores</span>
+      </div>
+
+      <div class="prod-card">
+        <div class="icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 8h14l-1.5 11a2 2 0 01-2 1.8H8.5a2 2 0 01-2-1.8L5 8z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 8V6a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.6"/></svg>
+        </div>
+        <h3>Pudim</h3>
+        <p>Cremoso, com calda de caramelo generosa — a sobremesa que fecha qualquer refeição com chave de ouro.</p>
+        <span class="tag">Tradicional</span>
+      </div>
+
+      <div class="prod-card">
+        <div class="icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M4 8h16M4 16h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Encomendas especiais</h3>
+        <p>Datas comemorativas, festas e presentes personalizados — conte pra gente a ocasião e criamos junto com você.</p>
+        <span class="tag">Sob encomenda</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="fidelidade" id="fidelidade">
+  <div class="wrap fid-grid">
+    <div class="fid-copy">
+      <div class="section-head">
+        <div class="seal-divider">
+          <div class="line"></div>
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M8 12l2.5 2.5L16 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="line"></div>
+        </div>
+        <h2>Cartão fidelidade Lella Dolci</h2>
+      </div>
+      <p>A cada compra, um carimbo. A cada cartão completo, um doce por nossa conta — nosso jeito de agradecer quem sempre volta.</p>
+      <ul>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Ganhe um carimbo a cada compra, física ou por encomenda.
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Complete os 10 carimbos e escolha um doce grátis da vitrine.
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Sem prazo de validade — no seu tempo, do seu jeito.
+        </li>
+      </ul>
+      <a href="fidelidade.html" class="btn">Acessar meu cartão fidelidade</a>
+    </div>
+
+    <div>
+      <div class="card-demo">
+        <div class="card-top">
+          <div>
+            <div class="card-brand">Lella Dolci</div>
+            <div class="card-sub">Cartão fidelidade</div>
+          </div>
+          <svg width="30" height="30" viewBox="0 0 40 40" fill="none">
+            <circle cx="20" cy="20" r="18" fill="none" stroke="#D9A62E" stroke-width="1.5" stroke-dasharray="2 3"/>
+            <path d="M13 22c1.5-6 4-9 7-9s5.5 3 7 9" stroke="#D9A62E" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <div class="stamps" id="stamps"></div>
+        <div class="card-foot">
+          <span class="progress-text" id="progressText">0 de 10 carimbos</span>
+          <button id="resetStamps" type="button">Reiniciar</button>
+        </div>
+      </div>
+      <p class="card-hint">Demonstração ilustrativa — para ver seu progresso real, acesse seu cartão fidelidade.</p>
+    </div>
+  </div>
+</section>
+
+<section class="contato" id="contato">
+  <div class="wrap">
+    <h2>Bora adoçar seu dia?</h2>
+    <p>Fale com a gente pelo WhatsApp ou Instagram para fazer seu pedido, encomendar algo especial ou pegar seu cartão fidelidade.</p>
+    <div class="contato-actions">
+      <a href="#" class="btn">Pedir pelo WhatsApp</a>
+      <a href="#" class="btn ghost">Ver Instagram</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="seal-divider">
+      <div class="line"></div>
+      <svg viewBox="0 0 24 24" fill="none" style="color:var(--wine)"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/></svg>
+      <div class="line"></div>
+    </div>
+    <p>Lella Dolci — confeitaria artesanal. Feito à mão, com carinho, para todo mundo.</p>
+  </div>
+</footer>
+
+<script>
+  // Loyalty stamp demo
+  const stampIcon = `<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.9 4.3 4.7.5-3.5 3.2.9 4.6L12 13.4 7.9 15.6l.9-4.6L5.3 7.8l4.7-.5L12 3z" fill="currentColor"/></svg>`;
+  const total = 10;
+  const stampsEl = document.getElementById('stamps');
+  const progressText = document.getElementById('progressText');
+  let filled = new Array(total).fill(false);
+
+  function render(){
+    stampsEl.innerHTML = '';
+    filled.forEach((isFilled, i) => {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'stamp' + (isFilled ? ' filled' : '');
+      el.setAttribute('aria-label', `Carimbo ${i+1} de ${total}${isFilled ? ', preenchido' : ', vazio'}`);
+      el.innerHTML = stampIcon;
+      el.addEventListener('click', () => {
+        filled[i] = !filled[i];
+        render();
+      });
+      stampsEl.appendChild(el);
+    });
+    const count = filled.filter(Boolean).length;
+    progressText.textContent = count === total
+      ? 'Cartão completo — doce grátis liberado!'
+      : `${count} de ${total} carimbos`;
+  }
+
+  document.getElementById('resetStamps').addEventListener('click', () => {
+    filled = new Array(total).fill(false);
+    render();
+  });
+
+  render();
+
+  // mobile nav (simple show/hide could be extended later)
+</script>
+
+</body>
+</html>

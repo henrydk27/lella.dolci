@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lella Dolci — Cartão Fidelidade (teste)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --wine:#7A1E2B; --wine-dark:#4F1420; --honey:#D9A62E; --honey-light:#F0CB6C;
+    --cocoa:#3B2416; --paper:#FBF3E7; --paper-soft:#F3E7D5; --cream-text:#FFF8EC;
+    --shadow:0 12px 32px rgba(59,36,22,0.14); --radius:20px;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:var(--paper); color:var(--cocoa); font-family:'Manrope',sans-serif;
+    min-height:100vh; padding: 32px 18px;
+  }
+  h1,h2,h3{ font-family:'Fraunces',serif; color:var(--wine-dark); }
+  .wrap{ max-width: 640px; margin:0 auto; }
+  .top{ text-align:center; margin-bottom: 26px; }
+  .top h1{ font-size:1.8rem; margin-bottom:6px; }
+  .top p{ color:#5C4432; font-size:0.9rem; }
+  .badge-test{
+    display:inline-block; margin-top:10px; font-size:0.72rem; font-weight:700;
+    letter-spacing:0.05em; text-transform:uppercase; color:var(--wine);
+    background:rgba(122,30,43,0.08); padding:5px 12px; border-radius:999px;
+  }
+  .tabs{ display:flex; gap:10px; margin-bottom:24px; background:var(--paper-soft); padding:6px; border-radius:999px; }
+  .tab{
+    flex:1; text-align:center; padding:10px; border-radius:999px; cursor:pointer;
+    font-weight:700; font-size:0.9rem; color:var(--cocoa); background:transparent; border:none;
+    transition: all 0.2s ease;
+  }
+  .tab.active{ background:var(--wine); color:var(--cream-text); }
+  .panel{
+    background:#fff; border-radius:var(--radius); padding:28px; box-shadow:var(--shadow);
+    display:none;
+  }
+  .panel.active{ display:block; }
+  label{ display:block; font-size:0.82rem; font-weight:700; margin-bottom:6px; color:#5C4432; }
+  input{
+    width:100%; padding:12px 14px; border:1.5px solid #E4D6C1; border-radius:10px;
+    font-family:inherit; font-size:0.95rem; margin-bottom:16px; background:var(--paper);
+  }
+  input:focus{ outline:2px solid var(--honey); border-color:var(--honey); }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%;
+    padding:13px 20px; background:var(--wine); color:var(--cream-text); border:none;
+    border-radius:999px; font-weight:700; font-size:0.92rem; cursor:pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .btn:hover{ background:var(--wine-dark); transform:translateY(-1px); }
+  .btn.secondary{ background:transparent; color:var(--wine-dark); border:2px solid var(--wine-dark); }
+  .btn.secondary:hover{ background:var(--wine-dark); color:var(--cream-text); }
+  .btn.small{ width:auto; padding:8px 16px; font-size:0.8rem; }
+  .msg{ font-size:0.85rem; padding:10px 14px; border-radius:10px; margin-bottom:16px; }
+  .msg.error{ background:#FBE4E4; color:#8A2A2A; }
+  .msg.success{ background:#E8F0DE; color:#3F5A24; }
+  .msg.info{ background:var(--paper-soft); color:#5C4432; }
+
+  .card-demo{
+    background:linear-gradient(150deg,var(--wine) 0%, var(--wine-dark) 100%);
+    border-radius:var(--radius); padding:28px; color:var(--cream-text); margin-top: 6px;
+  }
+  .card-top{ display:flex; justify-content:space-between; margin-bottom:20px; }
+  .card-brand{ font-family:'Fraunces',serif; font-weight:600; font-size:1.15rem; }
+  .card-sub{ font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--honey); margin-top:2px; }
+  .stamps{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:18px; }
+  .stamp{
+    aspect-ratio:1; border-radius:50%; border:2px dashed rgba(255,248,236,0.35);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .stamp svg{ width:55%; height:55%; opacity:0; color:var(--honey); }
+  .stamp.filled{ border-style:solid; border-color:var(--honey); background:rgba(217,166,46,0.14); }
+  .stamp.filled svg{ opacity:1; }
+  .progress-text{ font-size:0.85rem; color:rgba(255,248,236,0.85); text-align:center; }
+
+  table{ width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:16px; }
+  th, td{ text-align:left; padding:10px 8px; border-bottom:1px solid #EFE3D2; }
+  th{ color:#5C4432; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em; }
+  .client-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .btn.tiny{ padding:6px 10px; font-size:0.72rem; }
+  .empty{ text-align:center; color:#8A7860; padding:24px 0; font-size:0.9rem; }
+  .row{ display:flex; gap:10px; }
+  .row > *{ flex:1; }
+  .logout{ text-align:center; margin-top:14px; }
+  .logout button{ background:none; border:none; color:#5C4432; text-decoration:underline; cursor:pointer; font-size:0.82rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Lella Dolci</h1>
+    <p>Cartão fidelidade digital</p>
+    <span class="badge-test">Protótipo de teste</span>
+    <p style="margin-top:14px;"><a href="index.html" style="color:var(--wine); font-weight:700; font-size:0.85rem; text-decoration:underline;">← Voltar para o site principal</a></p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabCliente" onclick="switchTab('cliente')">Sou cliente</button>
+    <button class="tab" id="tabLoja" onclick="switchTab('loja')">Sou da loja</button>
+  </div>
+
+  <!-- CLIENTE -->
+  <div class="panel active" id="panelCliente">
+    <div id="clienteMsg"></div>
+
+    <div id="clienteLogin">
+      <label for="nome">Seu nome</label>
+      <input type="text" id="nome" placeholder="Ex: Maria Silva" autocomplete="name">
+      <label for="email">Seu e-mail</label>
+      <input type="email" id="email" placeholder="seuemail@exemplo.com" autocomplete="email">
+      <button class="btn" onclick="entrarOuCadastrar()">Entrar / Criar meu cartão</button>
+      <p style="font-size:0.78rem; color:#8A7860; margin-top:12px; text-align:center;">
+        Já tem cartão? Só digite o mesmo e-mail para ver seu progresso.
+      </p>
+    </div>
+
+    <div id="clienteCard" style="display:none;">
+      <div class="card-demo">
+        <div class="card-top">
+          <div>
+            <div class="card-brand" id="cardNome">—</div>
+            <div class="card-sub">Cartão fidelidade</div>
+          </div>
+        </div>
+        <div class="stamps" id="clienteStamps"></div>
+        <div class="progress-text" id="clienteProgress">0 de 10 carimbos</div>
+      </div>
+      <div class="logout"><button onclick="sairCliente()">Sair da conta</button></div>
+    </div>
+  </div>
+
+  <!-- LOJA -->
+  <div class="panel" id="panelLoja">
+    <div id="lojaMsg"></div>
+
+    <div id="lojaLogin">
+      <label for="senhaLoja">Senha da loja</label>
+      <input type="password" id="senhaLoja" placeholder="Digite a senha">
+      <button class="btn" onclick="entrarLoja()">Entrar</button>
+      <p style="font-size:0.75rem; color:#8A7860; margin-top:10px;">
+        Senha de teste: <strong>lella2026</strong> — troque isso antes de usar de verdade.
+      </p>
+    </div>
+
+    <div id="lojaPainel" style="display:none;">
+      <label for="buscaCliente">Buscar cliente por e-mail</label>
+      <input type="text" id="buscaCliente" placeholder="Digite para filtrar..." oninput="renderTabela()">
+      <div id="tabelaClientes"></div>
+      <div class="logout"><button onclick="sairLoja()">Sair da área da loja</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'lella-clientes-v1';
+  const TOTAL_CARIMBOS = 10;
+  const SENHA_LOJA = 'lella2026'; // troque antes de usar em produção
+
+  let clienteAtual = null; // email logado como cliente
+  let lojaLogada = false;
+
+  const stampIcon = `<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.9 4.3 4.7.5-3.5 3.2.9 4.6L12 13.4 7.9 15.6l.9-4.6L5.3 7.8l4.7-.5L12 3z" fill="currentColor"/></svg>`;
+
+  function switchTab(tab){
+    document.getElementById('tabCliente').classList.toggle('active', tab==='cliente');
+    document.getElementById('tabLoja').classList.toggle('active', tab==='loja');
+    document.getElementById('panelCliente').classList.toggle('active', tab==='cliente');
+    document.getElementById('panelLoja').classList.toggle('active', tab==='loja');
+  }
+
+  function showMsg(elId, text, type){
+    document.getElementById(elId).innerHTML = `<div class="msg ${type}">${text}</div>`;
+  }
+  function clearMsg(elId){ document.getElementById(elId).innerHTML = ''; }
+
+  async function getClientes(){
+    try{
+      const res = await window.storage.get(STORAGE_KEY, true);
+      return res ? JSON.parse(res.value) : {};
+    } catch(e){
+      return {};
+    }
+  }
+
+  async function saveClientes(data){
+    try{
+      const res = await window.storage.set(STORAGE_KEY, JSON.stringify(data), true);
+      return !!res;
+    } catch(e){
+      console.error('Erro ao salvar', e);
+      return false;
+    }
+  }
+
+  function validEmail(email){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  // ---------- CLIENTE ----------
+  async function entrarOuCadastrar(){
+    clearMsg('clienteMsg');
+    const nome = document.getElementById('nome').value.trim();
+    const email = document.getElementById('email').value.trim().toLowerCase();
+
+    if(!nome || !email){
+      showMsg('clienteMsg', 'Preencha nome e e-mail.', 'error');
+      return;
+    }
+    if(!validEmail(email)){
+      showMsg('clienteMsg', 'Digite um e-mail válido.', 'error');
+      return;
+    }
+
+    showMsg('clienteMsg', 'Carregando...', 'info');
+    const clientes = await getClientes();
+
+    if(!clientes[email]){
+      clientes[email] = { nome, email, carimbos: 0, criadoEm: new Date().toISOString() };
+      const ok = await saveClientes(clientes);
+      if(!ok){
+        showMsg('clienteMsg', 'Não foi possível salvar agora. Tente novamente.', 'error');
+        return;
+      }
+    } else {
+      clientes[email].nome = nome; // atualiza nome se mudou
+      await saveClientes(clientes);
+    }
+
+    clienteAtual = email;
+    clearMsg('clienteMsg');
+    mostrarCartaoCliente(clientes[email]);
+  }
+
+  function mostrarCartaoCliente(cliente){
+    document.getElementById('clienteLogin').style.display = 'none';
+    document.getElementById('clienteCard').style.display = 'block';
+    document.getElementById('cardNome').textContent = cliente.nome;
+    renderStamps('clienteStamps', cliente.carimbos);
+    document.getElementById('clienteProgress').textContent =
+      cliente.carimbos >= TOTAL_CARIMBOS
+        ? 'Cartão completo — fale com a loja para resgatar!'
+        : `${cliente.carimbos} de ${TOTAL_CARIMBOS} carimbos`;
+  }
+
+  function renderStamps(containerId, count){
+    const el = document.getElementById(containerId);
+    el.innerHTML = '';
+    for(let i=0;i<TOTAL_CARIMBOS;i++){
+      const filled = i < count;
+      const div = document.createElement('div');
+      div.className = 'stamp' + (filled ? ' filled' : '');
+      div.innerHTML = stampIcon;
+      el.appendChild(div);
+    }
+  }
+
+  function sairCliente(){
+    clienteAtual = null;
+    document.getElementById('clienteLogin').style.display = 'block';
+    document.getElementById('clienteCard').style.display = 'none';
+    document.getElementById('nome').value = '';
+    document.getElementById('email').value = '';
+    clearMsg('clienteMsg');
+  }
+
+  // ---------- LOJA ----------
+  function entrarLoja(){
+    clearMsg('lojaMsg');
+    const senha = document.getElementById('senhaLoja').value;
+    if(senha !== SENHA_LOJA){
+      showMsg('lojaMsg', 'Senha incorreta.', 'error');
+      return;
+    }
+    lojaLogada = true;
+    document.getElementById('lojaLogin').style.display = 'none';
+    document.getElementById('lojaPainel').style.display = 'block';
+    renderTabela();
+  }
+
+  function sairLoja(){
+    lojaLogada = false;
+    document.getElementById('lojaLogin').style.display = 'block';
+    document.getElementById('lojaPainel').style.display = 'none';
+    document.getElementById('senhaLoja').value = '';
+    clearMsg('lojaMsg');
+  }
+
+  async function renderTabela(){
+    const clientes = await getClientes();
+    const filtro = (document.getElementById('buscaCliente')?.value || '').toLowerCase();
+    const lista = Object.values(clientes)
+      .filter(c => c.email.includes(filtro) || c.nome.toLowerCase().includes(filtro))
+      .sort((a,b) => b.carimbos - a.carimbos);
+
+    const container = document.getElementById('tabelaClientes');
+
+    if(lista.length === 0){
+      container.innerHTML = '<div class="empty">Nenhum cliente cadastrado ainda.</div>';
+      return;
+    }
+
+    let rows = lista.map(c => `
+      <tr>
+        <td>${c.nome}</td>
+        <td>${c.email}</td>
+        <td>${c.carimbos}/${TOTAL_CARIMBOS}</td>
+        <td>
+          <div class="client-actions">
+            <button class="btn tiny" onclick="addCarimbo('${c.email}')">+ carimbo</button>
+            <button class="btn tiny secondary" onclick="removerCarimbo('${c.email}')">- carimbo</button>
+            ${c.carimbos >= TOTAL_CARIMBOS ? `<button class="btn tiny" onclick="resgatarCartao('${c.email}')">Resgatar</button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>Nome</th><th>E-mail</th><th>Carimbos</th><th>Ações</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  async function addCarimbo(email){
+    const clientes = await getClientes();
+    if(!clientes[email]) return;
+    clientes[email].carimbos = Math.min(TOTAL_CARIMBOS, clientes[email].carimbos + 1);
+    await saveClientes(clientes);
+    renderTabela();
+    if(clienteAtual === email) mostrarCartaoCliente(clientes[email]);
+  }
+
+  async function removerCarimbo(email){
+    const clientes = await getClientes();
+    if(!clientes[email]) return;
+    clientes[email].carimbos = Math.max(0, clientes[email].carimbos - 1);
+    await saveClientes(clientes);
+    renderTabela();
+    if(clienteAtual === email) mostrarCartaoCliente(clientes[email]);
+  }
+
+  async function resgatarCartao(email){
+    const clientes = await getClientes();
+    if(!clientes[email]) return;
+    clientes[email].carimbos = 0;
+    await saveClientes(clientes);
+    renderTabela();
+    if(clienteAtual === email) mostrarCartaoCliente(clientes[email]);
+  }
+</script>
+</body>
+</html>
