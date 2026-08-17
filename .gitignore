@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+controle-vendas/lella_dolci.db
+controle-vendas/build/
+controle-vendas/dist/
