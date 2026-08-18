@@ -1,5 +1,7 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import messagebox, simpledialog, ttk
+
+import customtkinter as ctk
 
 import db
 import produtos
@@ -17,223 +19,191 @@ COR_TEXTO = "#f0eef5"
 COR_TEXTO_SUAVE = "#a99fc2"
 COR_LILAS = "#c77dff"
 COR_LILAS_NEON = "#e0aaff"
+COR_LILAS_HOVER = "#9d4edd"
 COR_LILAS_ESCURO = "#7b2cbf"
 COR_SELECAO = "#3c2a5e"
-COR_OK = "#7ef9c4"
 COR_ALERTA = "#ff6b9d"
+COR_ALERTA_HOVER = "#e0527f"
 
-FONTE_BASE = ("Segoe UI", 10)
-FONTE_TITULO = ("Segoe UI", 16, "bold")
-FONTE_SUBTITULO = ("Segoe UI", 11, "bold")
+RAIO = 14
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("dark-blue")
 
 
-def configurar_estilo(root):
+def botao(master, texto, comando, perigo=False, **kwargs):
+    cor = COR_ALERTA if perigo else COR_LILAS_ESCURO
+    cor_hover = COR_ALERTA_HOVER if perigo else COR_LILAS_HOVER
+    padrao = dict(
+        text=texto,
+        command=comando,
+        corner_radius=RAIO,
+        fg_color=cor,
+        hover_color=cor_hover,
+        text_color="#120c1a" if perigo else COR_TEXTO,
+        font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+        height=36,
+    )
+    padrao.update(kwargs)
+    return ctk.CTkButton(master, **padrao)
+
+
+def campo(master, placeholder="", **kwargs):
+    padrao = dict(
+        corner_radius=RAIO,
+        fg_color=COR_PAINEL_CLARO,
+        border_color=COR_LILAS_ESCURO,
+        border_width=1,
+        text_color=COR_TEXTO,
+        placeholder_text=placeholder,
+        placeholder_text_color=COR_TEXTO_SUAVE,
+        height=36,
+    )
+    padrao.update(kwargs)
+    return ctk.CTkEntry(master, **padrao)
+
+
+def combo(master, valores, **kwargs):
+    padrao = dict(
+        corner_radius=RAIO,
+        fg_color=COR_PAINEL_CLARO,
+        button_color=COR_LILAS_ESCURO,
+        button_hover_color=COR_LILAS_HOVER,
+        border_color=COR_LILAS_ESCURO,
+        text_color=COR_TEXTO,
+        dropdown_fg_color=COR_PAINEL_CLARO,
+        dropdown_text_color=COR_TEXTO,
+        dropdown_hover_color=COR_SELECAO,
+        values=valores,
+        height=36,
+        state="readonly",
+    )
+    padrao.update(kwargs)
+    return ctk.CTkComboBox(master, **padrao)
+
+
+def cartao(master, titulo=None, **kwargs):
+    padrao = dict(corner_radius=18, fg_color=COR_PAINEL, border_color=COR_LILAS_ESCURO, border_width=1)
+    padrao.update(kwargs)
+    frame = ctk.CTkFrame(master, **padrao)
+    if titulo:
+        ctk.CTkLabel(
+            frame, text=titulo, font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"), text_color=COR_LILAS_NEON
+        ).pack(anchor="w", padx=18, pady=(16, 6))
+    return frame
+
+
+def rotulo(master, texto, **kwargs):
+    padrao = dict(text=texto, text_color=COR_TEXTO, font=ctk.CTkFont(family="Segoe UI", size=12))
+    padrao.update(kwargs)
+    return ctk.CTkLabel(master, **padrao)
+
+
+def configurar_estilo_treeview(root):
+    """Trata o Treeview (nativo, usado para listas em tabela) para combinar com o tema."""
     style = ttk.Style(root)
     style.theme_use("clam")
 
-    root.configure(bg=COR_FUNDO)
-
-    style.configure(".", background=COR_FUNDO, foreground=COR_TEXTO, font=FONTE_BASE)
-
-    style.configure("TFrame", background=COR_FUNDO)
-    style.configure("Painel.TFrame", background=COR_PAINEL)
-
-    style.configure("TLabel", background=COR_FUNDO, foreground=COR_TEXTO, font=FONTE_BASE)
-    style.configure("Painel.TLabel", background=COR_PAINEL, foreground=COR_TEXTO, font=FONTE_BASE)
-    style.configure("Titulo.TLabel", background=COR_FUNDO, foreground=COR_LILAS_NEON, font=FONTE_TITULO)
-    style.configure("Subtitulo.TLabel", background=COR_PAINEL, foreground=COR_LILAS_NEON, font=FONTE_SUBTITULO)
-    style.configure("Resumo.TLabel", background=COR_FUNDO, foreground=COR_LILAS_NEON, font=("Segoe UI", 11, "bold"))
-
     style.configure(
-        "TLabelframe",
-        background=COR_PAINEL,
-        foreground=COR_LILAS_NEON,
-        bordercolor=COR_LILAS_ESCURO,
-        relief="solid",
-        borderwidth=1,
-    )
-    style.configure("TLabelframe.Label", background=COR_PAINEL, foreground=COR_LILAS_NEON, font=FONTE_SUBTITULO)
-
-    style.configure(
-        "TNotebook",
-        background=COR_FUNDO,
-        bordercolor=COR_FUNDO,
-        tabmargins=(5, 5, 5, 0),
-    )
-    style.configure(
-        "TNotebook.Tab",
-        background=COR_PAINEL,
-        foreground=COR_TEXTO_SUAVE,
-        padding=(16, 8),
-        font=("Segoe UI", 10, "bold"),
-        borderwidth=0,
-    )
-    style.map(
-        "TNotebook.Tab",
-        background=[("selected", COR_SELECAO)],
-        foreground=[("selected", COR_LILAS_NEON)],
-    )
-
-    style.configure(
-        "TEntry",
-        fieldbackground=COR_PAINEL_CLARO,
-        foreground=COR_TEXTO,
-        bordercolor=COR_LILAS_ESCURO,
-        insertcolor=COR_LILAS_NEON,
-        borderwidth=1,
-        padding=6,
-    )
-    style.map("TEntry", bordercolor=[("focus", COR_LILAS_NEON)])
-
-    style.configure(
-        "TCombobox",
-        fieldbackground=COR_PAINEL_CLARO,
-        background=COR_PAINEL_CLARO,
-        foreground=COR_TEXTO,
-        arrowcolor=COR_LILAS_NEON,
-        bordercolor=COR_LILAS_ESCURO,
-        padding=6,
-    )
-    style.map(
-        "TCombobox",
-        fieldbackground=[("readonly", COR_PAINEL_CLARO)],
-        foreground=[("readonly", COR_TEXTO)],
-    )
-    root.option_add("*TCombobox*Listbox.background", COR_PAINEL_CLARO)
-    root.option_add("*TCombobox*Listbox.foreground", COR_TEXTO)
-    root.option_add("*TCombobox*Listbox.selectBackground", COR_SELECAO)
-    root.option_add("*TCombobox*Listbox.selectForeground", COR_LILAS_NEON)
-
-    style.configure(
-        "TButton",
-        background=COR_LILAS_ESCURO,
-        foreground=COR_TEXTO,
-        font=("Segoe UI", 10, "bold"),
-        borderwidth=0,
-        padding=(12, 8),
-        focuscolor=COR_LILAS_ESCURO,
-    )
-    style.map(
-        "TButton",
-        background=[("active", COR_LILAS), ("pressed", COR_LILAS_NEON)],
-        foreground=[("active", "#1a1224"), ("pressed", "#1a1224")],
-    )
-
-    style.configure(
-        "Perigo.TButton",
-        background="#3d1f2e",
-        foreground=COR_ALERTA,
-        font=("Segoe UI", 10, "bold"),
-        borderwidth=0,
-        padding=(12, 8),
-    )
-    style.map(
-        "Perigo.TButton",
-        background=[("active", COR_ALERTA)],
-        foreground=[("active", "#1a1224")],
-    )
-
-    style.configure(
-        "Treeview",
+        "Custom.Treeview",
         background=COR_PAINEL_CLARO,
         fieldbackground=COR_PAINEL_CLARO,
         foreground=COR_TEXTO,
-        bordercolor=COR_BORDA,
+        bordercolor=COR_PAINEL,
         borderwidth=0,
-        rowheight=28,
+        rowheight=30,
+        font=("Segoe UI", 10),
     )
     style.map(
-        "Treeview",
+        "Custom.Treeview",
         background=[("selected", COR_SELECAO)],
         foreground=[("selected", COR_LILAS_NEON)],
     )
     style.configure(
-        "Treeview.Heading",
+        "Custom.Treeview.Heading",
         background=COR_PAINEL,
         foreground=COR_LILAS_NEON,
         font=("Segoe UI", 10, "bold"),
         borderwidth=0,
         relief="flat",
     )
-    style.map("Treeview.Heading", background=[("active", COR_SELECAO)])
-
-    style.configure("TSeparator", background=COR_LILAS_ESCURO)
-
-    style.configure(
-        "TScrollbar",
-        background=COR_PAINEL_CLARO,
-        troughcolor=COR_FUNDO,
-        bordercolor=COR_FUNDO,
-        arrowcolor=COR_LILAS_NEON,
-    )
-
+    style.map("Custom.Treeview.Heading", background=[("active", COR_SELECAO)])
+    style.layout("Custom.Treeview", [("Custom.Treeview.treearea", {"sticky": "nswe"})])
     return style
 
 
+def tabela(master, colunas):
+    """Cria um Treeview dentro de um container arredondado (CTkFrame) para simular cantos suaves."""
+    container = ctk.CTkFrame(master, corner_radius=18, fg_color=COR_PAINEL_CLARO, border_color=COR_LILAS_ESCURO, border_width=1)
+    tree = ttk.Treeview(container, columns=[c[0] for c in colunas], show="headings", style="Custom.Treeview")
+    for chave, titulo, largura in colunas:
+        tree.heading(chave, text=titulo)
+        tree.column(chave, width=largura)
+    tree.pack(fill="both", expand=True, padx=10, pady=10)
+    return container, tree
+
+
 def texto_widget(master, **kwargs):
-    """Cria um tk.Text ja estilizado para combinar com o tema dark."""
     padrao = dict(
-        bg=COR_PAINEL_CLARO,
-        fg=COR_TEXTO,
-        insertbackground=COR_LILAS_NEON,
-        selectbackground=COR_SELECAO,
-        selectforeground=COR_LILAS_NEON,
-        relief="flat",
-        borderwidth=8,
-        highlightthickness=1,
-        highlightbackground=COR_LILAS_ESCURO,
-        highlightcolor=COR_LILAS_NEON,
-        font=FONTE_BASE,
+        fg_color=COR_PAINEL_CLARO,
+        text_color=COR_TEXTO,
+        corner_radius=RAIO,
+        border_color=COR_LILAS_ESCURO,
+        border_width=1,
+        font=ctk.CTkFont(family="Segoe UI", size=12),
     )
     padrao.update(kwargs)
-    return tk.Text(master, **padrao)
+    return ctk.CTkTextbox(master, **padrao)
 
 
-def listbox_widget(master, **kwargs):
-    padrao = dict(
-        bg=COR_PAINEL_CLARO,
-        fg=COR_TEXTO,
-        selectbackground=COR_SELECAO,
-        selectforeground=COR_LILAS_NEON,
-        relief="flat",
-        borderwidth=6,
-        highlightthickness=1,
-        highlightbackground=COR_LILAS_ESCURO,
-        highlightcolor=COR_LILAS_NEON,
-        font=FONTE_BASE,
-        activestyle="none",
-    )
-    padrao.update(kwargs)
-    return tk.Listbox(master, **padrao)
-
-
-class App(tk.Tk):
+class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Lella Dolci - Controle de Vendas")
-        self.geometry("1050x650")
-        self.minsize(900, 560)
+        self.geometry("1080x680")
+        self.minsize(920, 580)
+        self.configure(fg_color=COR_FUNDO)
 
-        configurar_estilo(self)
-        self.configure(bg=COR_FUNDO)
+        configurar_estilo_treeview(self)
 
-        cabecalho = ttk.Frame(self)
-        cabecalho.pack(fill="x", padx=16, pady=(14, 0))
-        ttk.Label(cabecalho, text="Lella Dolci", style="Titulo.TLabel").pack(side="left")
-        ttk.Label(cabecalho, text="   controle de vendas", foreground=COR_TEXTO_SUAVE, background=COR_FUNDO).pack(side="left", pady=(6, 0))
+        cabecalho = ctk.CTkFrame(self, fg_color="transparent")
+        cabecalho.pack(fill="x", padx=22, pady=(18, 6))
+        ctk.CTkLabel(
+            cabecalho, text="Lella Dolci", font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"), text_color=COR_LILAS_NEON
+        ).pack(side="left")
+        ctk.CTkLabel(
+            cabecalho, text="   controle de vendas", font=ctk.CTkFont(family="Segoe UI", size=13), text_color=COR_TEXTO_SUAVE
+        ).pack(side="left", pady=(6, 0))
 
-        notebook = ttk.Notebook(self)
-        notebook.pack(fill="both", expand=True, padx=16, pady=14)
+        self.abas = ctk.CTkTabview(
+            self,
+            corner_radius=18,
+            fg_color=COR_PAINEL,
+            segmented_button_fg_color=COR_PAINEL,
+            segmented_button_selected_color=COR_LILAS_ESCURO,
+            segmented_button_selected_hover_color=COR_LILAS_HOVER,
+            segmented_button_unselected_color=COR_PAINEL,
+            segmented_button_unselected_hover_color=COR_SELECAO,
+            text_color=COR_TEXTO,
+        )
+        self.abas.pack(fill="both", expand=True, padx=22, pady=18)
 
-        self.aba_produtos = AbaProdutos(notebook)
-        self.aba_ingredientes = AbaIngredientes(notebook)
-        self.aba_pedidos = AbaPedidos(notebook, atualizar_callback=self.atualizar_tudo)
-        self.aba_historico = AbaHistorico(notebook)
+        self.abas.add("Produtos")
+        self.abas.add("Ingredientes")
+        self.abas.add("Pedidos")
+        self.abas.add("Historico")
 
-        notebook.add(self.aba_produtos, text="  Produtos  ")
-        notebook.add(self.aba_ingredientes, text="  Ingredientes  ")
-        notebook.add(self.aba_pedidos, text="  Pedidos  ")
-        notebook.add(self.aba_historico, text="  Historico  ")
+        self.aba_produtos = AbaProdutos(self.abas.tab("Produtos"))
+        self.aba_produtos.pack(fill="both", expand=True)
+
+        self.aba_ingredientes = AbaIngredientes(self.abas.tab("Ingredientes"))
+        self.aba_ingredientes.pack(fill="both", expand=True)
+
+        self.aba_pedidos = AbaPedidos(self.abas.tab("Pedidos"), atualizar_callback=self.atualizar_tudo)
+        self.aba_pedidos.pack(fill="both", expand=True)
+
+        self.aba_historico = AbaHistorico(self.abas.tab("Historico"))
+        self.aba_historico.pack(fill="both", expand=True)
 
     def atualizar_tudo(self):
         self.aba_produtos.atualizar()
@@ -243,59 +213,60 @@ class App(tk.Tk):
 
 # ---------------- ABA PRODUTOS ----------------
 
-class AbaProdutos(ttk.Frame):
+class AbaProdutos(ctk.CTkFrame):
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__(parent, fg_color="transparent")
         self.produto_selecionado = None
         self._montar_layout()
         self.atualizar()
 
     def _montar_layout(self):
-        frame_lista = ttk.Frame(self)
-        frame_lista.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=5)
-
-        colunas = ("id", "nome", "preco", "descricao")
-        self.tree = ttk.Treeview(frame_lista, columns=colunas, show="headings")
-        for col, titulo, largura in [("id", "ID", 40), ("nome", "Nome", 180), ("preco", "Preco", 80), ("descricao", "Descricao", 220)]:
-            self.tree.heading(col, text=titulo)
-            self.tree.column(col, width=largura)
-        self.tree.pack(fill="both", expand=True)
+        container_lista, self.tree = tabela(self, [
+            ("id", "ID", 50), ("nome", "Nome", 200), ("preco", "Preco", 90), ("descricao", "Descricao", 240),
+        ])
+        container_lista.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=4)
         self.tree.bind("<<TreeviewSelect>>", self._selecionar)
 
-        frame_form = ttk.LabelFrame(self, text="Produto")
-        frame_form.pack(side="right", fill="y", padx=(0, 5), pady=5)
+        painel = cartao(self, titulo="Produto", width=340)
+        painel.pack(side="right", fill="y", pady=4)
+        painel.pack_propagate(False)
 
-        ttk.Label(frame_form, text="Nome:", style="Painel.TLabel").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
-        self.entry_nome = ttk.Entry(frame_form, width=32)
-        self.entry_nome.grid(row=0, column=1, padx=10, pady=(10, 5))
+        rotulo(painel, "Nome").pack(anchor="w", padx=18)
+        self.entry_nome = campo(painel, "Ex: Bolo de chocolate")
+        self.entry_nome.pack(fill="x", padx=18, pady=(2, 10))
 
-        ttk.Label(frame_form, text="Preco:", style="Painel.TLabel").grid(row=1, column=0, sticky="w", padx=10, pady=5)
-        self.entry_preco = ttk.Entry(frame_form, width=32)
-        self.entry_preco.grid(row=1, column=1, padx=10, pady=5)
+        rotulo(painel, "Preco de venda").pack(anchor="w", padx=18)
+        self.entry_preco = campo(painel, "Ex: 45.00")
+        self.entry_preco.pack(fill="x", padx=18, pady=(2, 10))
 
-        ttk.Label(frame_form, text="Descricao:", style="Painel.TLabel").grid(row=2, column=0, sticky="w", padx=10, pady=5)
-        self.entry_descricao = ttk.Entry(frame_form, width=32)
-        self.entry_descricao.grid(row=2, column=1, padx=10, pady=5)
+        rotulo(painel, "Descricao").pack(anchor="w", padx=18)
+        self.entry_descricao = campo(painel, "Opcional")
+        self.entry_descricao.pack(fill="x", padx=18, pady=(2, 10))
 
-        frame_botoes = ttk.Frame(frame_form, style="Painel.TFrame")
-        frame_botoes.grid(row=3, column=0, columnspan=2, pady=10)
-        ttk.Button(frame_botoes, text="Novo", command=self._limpar).pack(side="left", padx=4)
-        ttk.Button(frame_botoes, text="Salvar", command=self._salvar).pack(side="left", padx=4)
-        ttk.Button(frame_botoes, text="Remover", style="Perigo.TButton", command=self._remover).pack(side="left", padx=4)
+        frame_botoes = ctk.CTkFrame(painel, fg_color="transparent")
+        frame_botoes.pack(fill="x", padx=18, pady=(4, 10))
+        botao(frame_botoes, "Novo", self._limpar, width=90).pack(side="left", padx=(0, 6))
+        botao(frame_botoes, "Salvar", self._salvar, width=90).pack(side="left", padx=6)
+        botao(frame_botoes, "Remover", self._remover, perigo=True, width=90).pack(side="left", padx=6)
 
-        ttk.Separator(frame_form, orient="horizontal").grid(row=4, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
-        ttk.Label(frame_form, text="Ficha tecnica (ingredientes)", style="Subtitulo.TLabel").grid(row=5, column=0, columnspan=2, padx=10)
+        ctk.CTkFrame(painel, height=1, fg_color=COR_LILAS_ESCURO).pack(fill="x", padx=18, pady=10)
+        rotulo(painel, "Ficha tecnica (ingredientes)", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=COR_LILAS_NEON).pack(anchor="w", padx=18)
 
-        self.lista_ficha = listbox_widget(frame_form, width=42, height=8)
-        self.lista_ficha.grid(row=6, column=0, columnspan=2, padx=10, pady=8)
+        self.lista_ficha = tk.Listbox(
+            painel, bg=COR_PAINEL_CLARO, fg=COR_TEXTO, selectbackground=COR_SELECAO,
+            selectforeground=COR_LILAS_NEON, relief="flat", borderwidth=0,
+            highlightthickness=1, highlightbackground=COR_LILAS_ESCURO, highlightcolor=COR_LILAS_NEON,
+            font=("Segoe UI", 10), height=7, activestyle="none",
+        )
+        self.lista_ficha.pack(fill="x", padx=18, pady=8)
 
-        frame_ficha_botoes = ttk.Frame(frame_form, style="Painel.TFrame")
-        frame_ficha_botoes.grid(row=7, column=0, columnspan=2)
-        ttk.Button(frame_ficha_botoes, text="Adicionar ingrediente", command=self._adicionar_ingrediente_ficha).pack(side="left", padx=4)
-        ttk.Button(frame_ficha_botoes, text="Remover selecionado", style="Perigo.TButton", command=self._remover_ingrediente_ficha).pack(side="left", padx=4)
+        frame_ficha_botoes = ctk.CTkFrame(painel, fg_color="transparent")
+        frame_ficha_botoes.pack(fill="x", padx=18, pady=(0, 6))
+        botao(frame_ficha_botoes, "+ ingrediente", self._adicionar_ingrediente_ficha, width=140).pack(side="left", padx=(0, 6))
+        botao(frame_ficha_botoes, "Remover", self._remover_ingrediente_ficha, perigo=True, width=100).pack(side="left")
 
-        self.label_custo = ttk.Label(frame_form, text="Custo estimado: R$ 0.00", style="Subtitulo.TLabel")
-        self.label_custo.grid(row=8, column=0, columnspan=2, pady=14)
+        self.label_custo = rotulo(painel, "Custo estimado: R$ 0.00", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=COR_LILAS_NEON)
+        self.label_custo.pack(anchor="w", padx=18, pady=(8, 16))
 
     def atualizar(self):
         for item in self.tree.get_children():
@@ -327,7 +298,7 @@ class AbaProdutos(ttk.Frame):
         for i in produtos.listar_ingredientes_do_produto(self.produto_selecionado):
             self.lista_ficha.insert(tk.END, f"[{i['id']}] {i['nome']} - {i['quantidade']} {i['unidade']}")
         custo = produtos.calcular_custo_produto(self.produto_selecionado)
-        self.label_custo.config(text=f"Custo estimado: R$ {custo:.2f}")
+        self.label_custo.configure(text=f"Custo estimado: R$ {custo:.2f}")
 
     def _limpar(self):
         self.produto_selecionado = None
@@ -335,7 +306,7 @@ class AbaProdutos(ttk.Frame):
         self.entry_preco.delete(0, tk.END)
         self.entry_descricao.delete(0, tk.END)
         self.lista_ficha.delete(0, tk.END)
-        self.label_custo.config(text="Custo estimado: R$ 0.00")
+        self.label_custo.configure(text="Custo estimado: R$ 0.00")
         self.tree.selection_remove(self.tree.selection())
 
     def _salvar(self):
@@ -405,7 +376,11 @@ class SelecionarDialog(simpledialog.Dialog):
     def body(self, master):
         master.configure(bg=COR_PAINEL)
         self.configure(bg=COR_PAINEL)
-        self.listbox = listbox_widget(master, width=40, height=10)
+        self.listbox = tk.Listbox(
+            master, width=40, height=10, bg=COR_PAINEL_CLARO, fg=COR_TEXTO,
+            selectbackground=COR_SELECAO, selectforeground=COR_LILAS_NEON,
+            relief="flat", highlightthickness=1, highlightbackground=COR_LILAS_ESCURO,
+        )
         for o in self.opcoes:
             self.listbox.insert(tk.END, o)
         self.listbox.pack()
@@ -419,55 +394,53 @@ class SelecionarDialog(simpledialog.Dialog):
 
 # ---------------- ABA INGREDIENTES ----------------
 
-class AbaIngredientes(ttk.Frame):
+class AbaIngredientes(ctk.CTkFrame):
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__(parent, fg_color="transparent")
         self.ingrediente_selecionado = None
         self._montar_layout()
         self.atualizar()
 
     def _montar_layout(self):
-        frame_lista = ttk.Frame(self)
-        frame_lista.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=5)
-
-        colunas = ("id", "nome", "unidade", "estoque", "preco")
-        self.tree = ttk.Treeview(frame_lista, columns=colunas, show="headings")
-        for col, titulo, largura in [("id", "ID", 40), ("nome", "Nome", 160), ("unidade", "Unidade", 70), ("estoque", "Estoque", 80), ("preco", "Preco Unit.", 90)]:
-            self.tree.heading(col, text=titulo)
-            self.tree.column(col, width=largura)
-        self.tree.pack(fill="both", expand=True)
+        container_lista, self.tree = tabela(self, [
+            ("id", "ID", 50), ("nome", "Nome", 170), ("unidade", "Unidade", 80), ("estoque", "Estoque", 90), ("preco", "Preco Unit.", 100),
+        ])
+        container_lista.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=4)
         self.tree.bind("<<TreeviewSelect>>", self._selecionar)
 
-        frame_form = ttk.LabelFrame(self, text="Ingrediente")
-        frame_form.pack(side="right", fill="y", padx=(0, 5), pady=5)
+        painel = cartao(self, titulo="Ingrediente", width=340)
+        painel.pack(side="right", fill="y", pady=4)
+        painel.pack_propagate(False)
 
-        ttk.Label(frame_form, text="Nome:", style="Painel.TLabel").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
-        self.entry_nome = ttk.Entry(frame_form, width=32)
-        self.entry_nome.grid(row=0, column=1, padx=10, pady=(10, 5))
+        rotulo(painel, "Nome").pack(anchor="w", padx=18)
+        self.entry_nome = campo(painel, "Ex: Farinha de trigo")
+        self.entry_nome.pack(fill="x", padx=18, pady=(2, 10))
 
-        ttk.Label(frame_form, text="Unidade (g, kg, ml, l, un):", style="Painel.TLabel").grid(row=1, column=0, sticky="w", padx=10, pady=5)
-        self.entry_unidade = ttk.Entry(frame_form, width=32)
-        self.entry_unidade.grid(row=1, column=1, padx=10, pady=5)
+        rotulo(painel, "Unidade (g, kg, ml, l, un)").pack(anchor="w", padx=18)
+        self.entry_unidade = campo(painel, "Ex: kg")
+        self.entry_unidade.pack(fill="x", padx=18, pady=(2, 10))
 
-        ttk.Label(frame_form, text="Estoque:", style="Painel.TLabel").grid(row=2, column=0, sticky="w", padx=10, pady=5)
-        self.entry_estoque = ttk.Entry(frame_form, width=32)
-        self.entry_estoque.grid(row=2, column=1, padx=10, pady=5)
+        rotulo(painel, "Estoque").pack(anchor="w", padx=18)
+        self.entry_estoque = campo(painel, "Ex: 10")
+        self.entry_estoque.pack(fill="x", padx=18, pady=(2, 10))
 
-        ttk.Label(frame_form, text="Preco unitario:", style="Painel.TLabel").grid(row=3, column=0, sticky="w", padx=10, pady=5)
-        self.entry_preco = ttk.Entry(frame_form, width=32)
-        self.entry_preco.grid(row=3, column=1, padx=10, pady=5)
+        rotulo(painel, "Preco unitario").pack(anchor="w", padx=18)
+        self.entry_preco = campo(painel, "Ex: 5.00")
+        self.entry_preco.pack(fill="x", padx=18, pady=(2, 10))
 
-        frame_botoes = ttk.Frame(frame_form, style="Painel.TFrame")
-        frame_botoes.grid(row=4, column=0, columnspan=2, pady=10)
-        ttk.Button(frame_botoes, text="Novo", command=self._limpar).pack(side="left", padx=4)
-        ttk.Button(frame_botoes, text="Salvar", command=self._salvar).pack(side="left", padx=4)
-        ttk.Button(frame_botoes, text="Remover", style="Perigo.TButton", command=self._remover).pack(side="left", padx=4)
+        frame_botoes = ctk.CTkFrame(painel, fg_color="transparent")
+        frame_botoes.pack(fill="x", padx=18, pady=(4, 10))
+        botao(frame_botoes, "Novo", self._limpar, width=90).pack(side="left", padx=(0, 6))
+        botao(frame_botoes, "Salvar", self._salvar, width=90).pack(side="left", padx=6)
+        botao(frame_botoes, "Remover", self._remover, perigo=True, width=90).pack(side="left", padx=6)
 
-        ttk.Separator(frame_form, orient="horizontal").grid(row=5, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
-        ttk.Label(frame_form, text="Ajustar estoque (+/-):", style="Painel.TLabel").grid(row=6, column=0, sticky="w", padx=10)
-        self.entry_ajuste = ttk.Entry(frame_form, width=15)
-        self.entry_ajuste.grid(row=6, column=1, sticky="w", padx=10)
-        ttk.Button(frame_form, text="Aplicar ajuste", command=self._ajustar_estoque).grid(row=7, column=0, columnspan=2, pady=10)
+        ctk.CTkFrame(painel, height=1, fg_color=COR_LILAS_ESCURO).pack(fill="x", padx=18, pady=10)
+        rotulo(painel, "Ajustar estoque (+/-)").pack(anchor="w", padx=18)
+        frame_ajuste = ctk.CTkFrame(painel, fg_color="transparent")
+        frame_ajuste.pack(fill="x", padx=18, pady=(2, 16))
+        self.entry_ajuste = campo(frame_ajuste, "Ex: -2", width=140)
+        self.entry_ajuste.pack(side="left", padx=(0, 8))
+        botao(frame_ajuste, "Aplicar", self._ajustar_estoque, width=100).pack(side="left")
 
     def atualizar(self):
         for item in self.tree.get_children():
@@ -548,9 +521,9 @@ class AbaIngredientes(ttk.Frame):
 
 # ---------------- ABA PEDIDOS ----------------
 
-class AbaPedidos(ttk.Frame):
+class AbaPedidos(ctk.CTkFrame):
     def __init__(self, parent, atualizar_callback=None):
-        super().__init__(parent)
+        super().__init__(parent, fg_color="transparent")
         self.atualizar_callback = atualizar_callback
         self.itens_pedido = []
         self.pedido_selecionado = None
@@ -558,71 +531,79 @@ class AbaPedidos(ttk.Frame):
         self.atualizar()
 
     def _montar_layout(self):
-        frame_lista = ttk.Frame(self)
-        frame_lista.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=5)
+        area_esquerda = ctk.CTkFrame(self, fg_color="transparent")
+        area_esquerda.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=4)
 
-        colunas = ("id", "cliente", "data", "status")
-        self.tree = ttk.Treeview(frame_lista, columns=colunas, show="headings")
-        for col, titulo, largura in [("id", "ID", 40), ("cliente", "Cliente", 140), ("data", "Data", 150), ("status", "Status", 100)]:
-            self.tree.heading(col, text=titulo)
-            self.tree.column(col, width=largura)
-        self.tree.pack(fill="both", expand=True)
+        container_lista, self.tree = tabela(area_esquerda, [
+            ("id", "ID", 50), ("cliente", "Cliente", 150), ("data", "Data", 150), ("status", "Status", 110),
+        ])
+        container_lista.pack(fill="both", expand=True)
         self.tree.bind("<<TreeviewSelect>>", self._selecionar_pedido)
 
-        frame_detalhe = ttk.Frame(frame_lista)
-        frame_detalhe.pack(fill="x", pady=8)
-        self.text_detalhe = texto_widget(frame_detalhe, height=8)
-        self.text_detalhe.pack(fill="x")
+        self.text_detalhe = texto_widget(area_esquerda, height=140)
+        self.text_detalhe.pack(fill="x", pady=10)
 
-        frame_status = ttk.Frame(frame_lista)
+        frame_status = ctk.CTkFrame(area_esquerda, fg_color="transparent")
         frame_status.pack(fill="x")
-        ttk.Label(frame_status, text="Status:").pack(side="left", padx=5)
-        self.combo_status = ttk.Combobox(frame_status, values=["pendente", "em_preparo", "concluido", "cancelado"], state="readonly", width=15)
-        self.combo_status.pack(side="left", padx=5)
-        ttk.Button(frame_status, text="Atualizar status", command=self._atualizar_status).pack(side="left", padx=5)
-        ttk.Button(frame_status, text="Remover pedido", style="Perigo.TButton", command=self._remover_pedido).pack(side="left", padx=5)
+        rotulo(frame_status, "Status:").pack(side="left", padx=(0, 8))
+        self.combo_status = combo(frame_status, ["pendente", "em_preparo", "concluido", "cancelado"], width=150)
+        self.combo_status.pack(side="left", padx=(0, 8))
+        botao(frame_status, "Atualizar status", self._atualizar_status, width=140).pack(side="left", padx=(0, 8))
+        botao(frame_status, "Remover pedido", self._remover_pedido, perigo=True, width=130).pack(side="left")
 
-        frame_novo = ttk.LabelFrame(self, text="Novo pedido")
-        frame_novo.pack(side="right", fill="y", padx=(0, 5), pady=5)
+        painel = cartao(self, titulo="Novo pedido", width=360)
+        painel.pack(side="right", fill="y", pady=4)
+        painel.pack_propagate(False)
 
-        ttk.Label(frame_novo, text="Cliente:", style="Painel.TLabel").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
-        self.entry_cliente = ttk.Entry(frame_novo, width=32)
-        self.entry_cliente.grid(row=0, column=1, padx=10, pady=(10, 5))
+        rotulo(painel, "Cliente").pack(anchor="w", padx=18)
+        self.entry_cliente = campo(painel, "Nome do cliente")
+        self.entry_cliente.pack(fill="x", padx=18, pady=(2, 10))
 
-        ttk.Label(frame_novo, text="Observacoes:", style="Painel.TLabel").grid(row=1, column=0, sticky="w", padx=10, pady=5)
-        self.entry_obs = ttk.Entry(frame_novo, width=32)
-        self.entry_obs.grid(row=1, column=1, padx=10, pady=5)
+        rotulo(painel, "Observacoes").pack(anchor="w", padx=18)
+        self.entry_obs = campo(painel, "Opcional")
+        self.entry_obs.pack(fill="x", padx=18, pady=(2, 10))
 
-        ttk.Label(frame_novo, text="Produto:", style="Painel.TLabel").grid(row=2, column=0, sticky="w", padx=10, pady=5)
-        self.combo_produto = ttk.Combobox(frame_novo, width=29, state="readonly")
-        self.combo_produto.grid(row=2, column=1, padx=10, pady=5)
+        rotulo(painel, "Produto").pack(anchor="w", padx=18)
+        self.combo_produto = combo(painel, [])
+        self.combo_produto.pack(fill="x", padx=18, pady=(2, 10))
 
-        ttk.Label(frame_novo, text="Quantidade:", style="Painel.TLabel").grid(row=3, column=0, sticky="w", padx=10, pady=5)
-        self.entry_quantidade = ttk.Entry(frame_novo, width=32)
-        self.entry_quantidade.grid(row=3, column=1, padx=10, pady=5)
+        rotulo(painel, "Quantidade").pack(anchor="w", padx=18)
+        self.entry_quantidade = campo(painel, "Ex: 2")
+        self.entry_quantidade.pack(fill="x", padx=18, pady=(2, 10))
 
-        ttk.Button(frame_novo, text="Adicionar item", command=self._adicionar_item).grid(row=4, column=0, columnspan=2, pady=8)
+        botao(painel, "+ Adicionar item", self._adicionar_item).pack(fill="x", padx=18, pady=(2, 10))
 
-        self.lista_itens = listbox_widget(frame_novo, width=42, height=8)
-        self.lista_itens.grid(row=5, column=0, columnspan=2, padx=10, pady=8)
-        ttk.Button(frame_novo, text="Remover item selecionado", style="Perigo.TButton", command=self._remover_item).grid(row=6, column=0, columnspan=2)
+        self.lista_itens = tk.Listbox(
+            painel, bg=COR_PAINEL_CLARO, fg=COR_TEXTO, selectbackground=COR_SELECAO,
+            selectforeground=COR_LILAS_NEON, relief="flat", borderwidth=0,
+            highlightthickness=1, highlightbackground=COR_LILAS_ESCURO, highlightcolor=COR_LILAS_NEON,
+            font=("Segoe UI", 10), height=7, activestyle="none",
+        )
+        self.lista_itens.pack(fill="x", padx=18, pady=6)
+        botao(painel, "Remover item selecionado", self._remover_item, perigo=True).pack(fill="x", padx=18, pady=(0, 10))
 
-        self.label_total = ttk.Label(frame_novo, text="Total: R$ 0.00", style="Subtitulo.TLabel")
-        self.label_total.grid(row=7, column=0, columnspan=2, pady=14)
+        self.label_total = rotulo(painel, "Total: R$ 0.00", font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"), text_color=COR_LILAS_NEON)
+        self.label_total.pack(padx=18, pady=(4, 10))
 
-        ttk.Button(frame_novo, text="Finalizar pedido", command=self._finalizar_pedido).grid(row=8, column=0, columnspan=2, pady=(0, 10))
+        botao(painel, "Finalizar pedido", self._finalizar_pedido, height=42).pack(fill="x", padx=18, pady=(0, 18))
 
         self._carregar_produtos_combo()
 
     def _carregar_produtos_combo(self):
         self.produtos_disponiveis = produtos.listar_produtos()
-        self.combo_produto["values"] = [f"{p['id']} - {p['nome']} (R$ {p['preco']:.2f})" for p in self.produtos_disponiveis]
+        valores = [f"{p['id']} - {p['nome']} (R$ {p['preco']:.2f})" for p in self.produtos_disponiveis]
+        self.combo_produto.configure(values=valores)
+        if valores:
+            self.combo_produto.set(valores[0])
+        else:
+            self.combo_produto.set("")
 
     def _adicionar_item(self):
-        indice = self.combo_produto.current()
-        if indice < 0:
+        valor_atual = self.combo_produto.get()
+        if not valor_atual or not self.produtos_disponiveis:
             messagebox.showerror("Erro", "Selecione um produto.")
             return
+        indice = [f"{p['id']} - {p['nome']} (R$ {p['preco']:.2f})" for p in self.produtos_disponiveis].index(valor_atual)
         try:
             quantidade = int(self.entry_quantidade.get())
             if quantidade <= 0:
@@ -655,7 +636,7 @@ class AbaPedidos(ttk.Frame):
             subtotal = item["quantidade"] * item["preco_unitario"]
             total += subtotal
             self.lista_itens.insert(tk.END, f"{item['quantidade']}x {item['nome']} - R$ {subtotal:.2f}")
-        self.label_total.config(text=f"Total: R$ {total:.2f}")
+        self.label_total.configure(text=f"Total: R$ {total:.2f}")
 
     def _finalizar_pedido(self):
         cliente = self.entry_cliente.get().strip()
@@ -737,40 +718,40 @@ class AbaPedidos(ttk.Frame):
 
 # ---------------- ABA HISTORICO ----------------
 
-class AbaHistorico(ttk.Frame):
+class AbaHistorico(ctk.CTkFrame):
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__(parent, fg_color="transparent")
         self._montar_layout()
         self.atualizar()
 
     def _montar_layout(self):
-        frame_filtro = ttk.Frame(self)
-        frame_filtro.pack(fill="x", padx=5, pady=8)
+        frame_filtro = ctk.CTkFrame(self, fg_color="transparent")
+        frame_filtro.pack(fill="x", pady=(4, 12))
 
-        ttk.Label(frame_filtro, text="Data inicio (AAAA-MM-DD):").pack(side="left", padx=5)
-        self.entry_inicio = ttk.Entry(frame_filtro, width=12)
-        self.entry_inicio.pack(side="left", padx=5)
+        rotulo(frame_filtro, "De:").pack(side="left", padx=(0, 6))
+        self.entry_inicio = campo(frame_filtro, "AAAA-MM-DD", width=130)
+        self.entry_inicio.pack(side="left", padx=(0, 12))
 
-        ttk.Label(frame_filtro, text="Data fim (AAAA-MM-DD):").pack(side="left", padx=5)
-        self.entry_fim = ttk.Entry(frame_filtro, width=12)
-        self.entry_fim.pack(side="left", padx=5)
+        rotulo(frame_filtro, "Ate:").pack(side="left", padx=(0, 6))
+        self.entry_fim = campo(frame_filtro, "AAAA-MM-DD", width=130)
+        self.entry_fim.pack(side="left", padx=(0, 12))
 
-        ttk.Label(frame_filtro, text="Status:").pack(side="left", padx=5)
-        self.combo_status = ttk.Combobox(frame_filtro, values=["", "pendente", "em_preparo", "concluido", "cancelado"], state="readonly", width=12)
-        self.combo_status.pack(side="left", padx=5)
+        rotulo(frame_filtro, "Status:").pack(side="left", padx=(0, 6))
+        self.combo_status = combo(frame_filtro, ["", "pendente", "em_preparo", "concluido", "cancelado"], width=150)
+        self.combo_status.pack(side="left", padx=(0, 12))
 
-        ttk.Button(frame_filtro, text="Filtrar", command=self.atualizar).pack(side="left", padx=5)
-        ttk.Button(frame_filtro, text="Limpar filtros", command=self._limpar_filtros).pack(side="left", padx=5)
+        botao(frame_filtro, "Filtrar", self.atualizar, width=110).pack(side="left", padx=(0, 8))
+        botao(frame_filtro, "Limpar", self._limpar_filtros, width=100).pack(side="left")
 
-        colunas = ("id", "cliente", "data", "status", "total")
-        self.tree = ttk.Treeview(self, columns=colunas, show="headings")
-        for col, titulo, largura in [("id", "ID", 40), ("cliente", "Cliente", 150), ("data", "Data", 150), ("status", "Status", 100), ("total", "Total", 90)]:
-            self.tree.heading(col, text=titulo)
-            self.tree.column(col, width=largura)
-        self.tree.pack(fill="both", expand=True, padx=5, pady=5)
+        container_lista, self.tree = tabela(self, [
+            ("id", "ID", 50), ("cliente", "Cliente", 160), ("data", "Data", 150), ("status", "Status", 110), ("total", "Total", 100),
+        ])
+        container_lista.pack(fill="both", expand=True)
 
-        self.label_resumo = ttk.Label(self, text="", style="Resumo.TLabel")
-        self.label_resumo.pack(pady=10)
+        self.label_resumo = rotulo(
+            self, "", font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"), text_color=COR_LILAS_NEON
+        )
+        self.label_resumo.pack(pady=14)
 
     def _limpar_filtros(self):
         self.entry_inicio.delete(0, tk.END)
@@ -792,7 +773,7 @@ class AbaHistorico(ttk.Frame):
             self.tree.insert("", "end", values=(p["id"], p["cliente"], p["data_pedido"], p["status"], f"{total:.2f}"))
 
         resumo = pedidos.resumo_vendas(data_inicio, data_fim)
-        self.label_resumo.config(text=f"Pedidos concluidos: {resumo['quantidade_pedidos']}   |   Total vendido: R$ {resumo['total_vendas']:.2f}")
+        self.label_resumo.configure(text=f"Pedidos concluidos: {resumo['quantidade_pedidos']}   |   Total vendido: R$ {resumo['total_vendas']:.2f}")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,11 @@ Site e sistema de vendas da confeitaria Lella Dolci.
 
 Programa para gerenciar o dia a dia da confeitaria: cadastro de produtos e precos, lista de ingredientes com estoque, registro de pedidos e historico de vendas.
 
-Requisitos: Python 3 (usa apenas a biblioteca padrao, incluindo `tkinter` para a interface grafica).
+Requisitos: Python 3 e a biblioteca `customtkinter` (a interface grafica usa ela para o visual moderno e arredondado).
+
+```bash
+pip install customtkinter
+```
 
 ### Interface grafica (recomendada)
 
@@ -21,7 +25,7 @@ Requisitos: Python 3 (usa apenas a biblioteca padrao, incluindo `tkinter` para a
 python controle-vendas/gui.py
 ```
 
-Abre uma janela com tema dark e detalhes lilas neon, com abas para Produtos, Ingredientes, Pedidos e Historico.
+Abre uma janela com tema dark, cantos arredondados e detalhes lilas neon, com abas para Produtos, Ingredientes, Pedidos e Historico.
 
 ### Executavel (.exe)
 
@@ -30,7 +34,7 @@ Ja existe um executavel gerado em `controle-vendas/dist/LellaDolci-ControleDeVen
 Para gerar novamente o .exe apos alterar o codigo:
 
 ```bash
-pip install pyinstaller
+pip install pyinstaller customtkinter
 cd controle-vendas
 python -m PyInstaller --noconfirm --onefile --windowed --name "LellaDolci-ControleDeVendas" gui.py
 ```
