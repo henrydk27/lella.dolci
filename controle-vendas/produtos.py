@@ -76,3 +76,11 @@ def remover_ingrediente_do_produto(produto_ingrediente_id):
 def calcular_custo_produto(produto_id):
     ingredientes = listar_ingredientes_do_produto(produto_id)
     return sum(i["quantidade"] * i["preco_unitario"] for i in ingredientes)
+
+
+def calcular_margem_produto(produto_id, preco_venda):
+    """Retorna (margem_reais, margem_percentual) com base no custo da ficha tecnica."""
+    custo = calcular_custo_produto(produto_id)
+    margem_reais = preco_venda - custo
+    margem_percentual = (margem_reais / preco_venda * 100) if preco_venda else 0
+    return margem_reais, margem_percentual

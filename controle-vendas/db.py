@@ -1,7 +1,19 @@
 import sqlite3
 import os
+import sys
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "lella_dolci.db")
+
+def _pasta_base():
+    """Pasta onde o banco deve ficar: ao lado do .exe quando empacotado
+    (PyInstaller extrai o codigo para uma pasta temporaria a cada execucao,
+    entao __file__ nao pode ser usado nesse caso), ou ao lado deste
+    arquivo quando rodando via `python gui.py`/`python main.py`."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+DB_PATH = os.path.join(_pasta_base(), "lella_dolci.db")
 
 
 def get_connection():
@@ -50,7 +62,9 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cliente TEXT NOT NULL,
             data_pedido TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pendente',
+            data_entrega TEXT,
+            forma_pagamento TEXT,
+            status TEXT NOT NULL DEFAULT 'nao_pago',
             observacoes TEXT
         )
     """)
@@ -67,5 +81,16 @@ def init_db():
         )
     """)
 
+    _migrar_colunas_pedidos(cur)
+
     conn.commit()
     conn.close()
+
+
+def _migrar_colunas_pedidos(cur):
+    """Adiciona colunas novas em bancos criados por versoes anteriores do programa."""
+    colunas_existentes = {linha[1] for linha in cur.execute("PRAGMA table_info(pedidos)").fetchall()}
+    if "data_entrega" not in colunas_existentes:
+        cur.execute("ALTER TABLE pedidos ADD COLUMN data_entrega TEXT")
+    if "forma_pagamento" not in colunas_existentes:
+        cur.execute("ALTER TABLE pedidos ADD COLUMN forma_pagamento TEXT")

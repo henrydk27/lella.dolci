@@ -1,3 +1,5 @@
+import os
+import sys
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 
@@ -7,6 +9,15 @@ import db
 import produtos
 import ingredientes
 import pedidos
+import datas
+
+
+def caminho_recurso(nome_arquivo):
+    """Resolve o caminho de um arquivo empacotado junto do programa.
+    Quando rodando via PyInstaller (--onefile), os arquivos ficam em
+    sys._MEIPASS; ao rodar via `python gui.py`, ficam ao lado deste arquivo."""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, nome_arquivo)
 
 
 # ---------------- TEMA DARK / LILAS NEON ----------------
@@ -143,17 +154,29 @@ def tabela(master, colunas):
     return container, tree
 
 
-def texto_widget(master, **kwargs):
-    padrao = dict(
+FORMAS_PAGAMENTO = ["", "pix", "dinheiro", "cartao_debito", "cartao_credito", "outro"]
+
+
+def mostrar_toast(widget, mensagem, sucesso=True):
+    """Banner discreto que aparece por alguns segundos e some sozinho,
+    no lugar de um popup do Windows que interrompe o fluxo."""
+    root = widget.winfo_toplevel()
+    cor_borda = COR_LILAS_NEON if sucesso else COR_ALERTA
+    toast = ctk.CTkLabel(
+        root,
+        text=mensagem,
         fg_color=COR_PAINEL_CLARO,
         text_color=COR_TEXTO,
         corner_radius=RAIO,
-        border_color=COR_LILAS_ESCURO,
-        border_width=1,
-        font=ctk.CTkFont(family="Segoe UI", size=12),
+        border_color=cor_borda,
+        border_width=2,
+        font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
+        padx=18,
+        pady=10,
     )
-    padrao.update(kwargs)
-    return ctk.CTkTextbox(master, **padrao)
+    toast.place(relx=0.5, rely=0.94, anchor="s")
+    toast.lift()
+    root.after(2400, toast.destroy)
 
 
 class App(ctk.CTk):
@@ -163,6 +186,11 @@ class App(ctk.CTk):
         self.geometry("1080x680")
         self.minsize(920, 580)
         self.configure(fg_color=COR_FUNDO)
+
+        try:
+            self.iconbitmap(caminho_recurso("icone.ico"))
+        except Exception:
+            pass
 
         configurar_estilo_treeview(self)
 
@@ -185,13 +213,18 @@ class App(ctk.CTk):
             segmented_button_unselected_color=COR_PAINEL,
             segmented_button_unselected_hover_color=COR_SELECAO,
             text_color=COR_TEXTO,
+            command=self._ao_trocar_aba,
         )
         self.abas.pack(fill="both", expand=True, padx=22, pady=18)
 
+        self.abas.add("Inicio")
         self.abas.add("Produtos")
         self.abas.add("Ingredientes")
         self.abas.add("Pedidos")
         self.abas.add("Historico")
+
+        self.aba_inicio = AbaInicio(self.abas.tab("Inicio"))
+        self.aba_inicio.pack(fill="both", expand=True)
 
         self.aba_produtos = AbaProdutos(self.abas.tab("Produtos"))
         self.aba_produtos.pack(fill="both", expand=True)
@@ -205,10 +238,74 @@ class App(ctk.CTk):
         self.aba_historico = AbaHistorico(self.abas.tab("Historico"))
         self.aba_historico.pack(fill="both", expand=True)
 
+        self.abas.set("Inicio")
+
     def atualizar_tudo(self):
+        self.aba_inicio.atualizar()
         self.aba_produtos.atualizar()
         self.aba_ingredientes.atualizar()
         self.aba_historico.atualizar()
+
+    def _ao_trocar_aba(self):
+        aba_atual = self.abas.get()
+        if aba_atual == "Pedidos":
+            self.aba_pedidos.atualizar()
+        elif aba_atual == "Inicio":
+            self.aba_inicio.atualizar()
+
+
+# ---------------- ABA INICIO (DASHBOARD) ----------------
+
+class AbaInicio(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="transparent")
+        self._montar_layout()
+        self.atualizar()
+
+    def _montar_layout(self):
+        ctk.CTkLabel(
+            self, text="Resumo geral", font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"), text_color=COR_LILAS_NEON
+        ).pack(anchor="w", pady=(4, 16))
+
+        linha_cards = ctk.CTkFrame(self, fg_color="transparent")
+        linha_cards.pack(fill="x")
+
+        self.card_vendido = self._criar_card(linha_cards, "Vendido este mes")
+        self.card_vendido.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+        self.card_abertos = self._criar_card(linha_cards, "Pedidos em aberto")
+        self.card_abertos.pack(side="left", fill="both", expand=True, padx=10)
+
+        self.card_mais_vendido = self._criar_card(linha_cards, "Produto mais vendido")
+        self.card_mais_vendido.pack(side="left", fill="both", expand=True, padx=(10, 0))
+
+    def _criar_card(self, master, titulo):
+        card = cartao(master, titulo=titulo, height=140)
+        card.pack_propagate(False)
+        valor = rotulo(card, "-", font=ctk.CTkFont(family="Segoe UI", size=26, weight="bold"), text_color=COR_TEXTO)
+        valor.pack(anchor="w", padx=18, pady=(6, 4))
+        detalhe = rotulo(card, "", font=ctk.CTkFont(family="Segoe UI", size=12), text_color=COR_TEXTO_SUAVE)
+        detalhe.pack(anchor="w", padx=18)
+        card.valor_label = valor
+        card.detalhe_label = detalhe
+        return card
+
+    def atualizar(self):
+        resumo_mes = pedidos.resumo_mes_atual()
+        self.card_vendido.valor_label.configure(text=f"R$ {resumo_mes['total_vendas']:.2f}")
+        self.card_vendido.detalhe_label.configure(text=f"{resumo_mes['quantidade_pedidos']} pedido(s) pago(s)")
+
+        em_aberto = pedidos.quantidade_pedidos_em_aberto()
+        self.card_abertos.valor_label.configure(text=str(em_aberto))
+        self.card_abertos.detalhe_label.configure(text="aguardando pagamento")
+
+        top = pedidos.produto_mais_vendido()
+        if top:
+            self.card_mais_vendido.valor_label.configure(text=top["nome"])
+            self.card_mais_vendido.detalhe_label.configure(text=f"{top['total_vendido']} unidade(s) vendida(s)")
+        else:
+            self.card_mais_vendido.valor_label.configure(text="-")
+            self.card_mais_vendido.detalhe_label.configure(text="sem vendas ainda")
 
 
 # ---------------- ABA PRODUTOS ----------------
@@ -266,7 +363,10 @@ class AbaProdutos(ctk.CTkFrame):
         botao(frame_ficha_botoes, "Remover", self._remover_ingrediente_ficha, perigo=True, width=100).pack(side="left")
 
         self.label_custo = rotulo(painel, "Custo estimado: R$ 0.00", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=COR_LILAS_NEON)
-        self.label_custo.pack(anchor="w", padx=18, pady=(8, 16))
+        self.label_custo.pack(anchor="w", padx=18, pady=(8, 2))
+
+        self.label_margem = rotulo(painel, "Margem: R$ 0.00 (0.0%)", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=COR_TEXTO)
+        self.label_margem.pack(anchor="w", padx=18, pady=(0, 16))
 
     def atualizar(self):
         for item in self.tree.get_children():
@@ -300,6 +400,12 @@ class AbaProdutos(ctk.CTkFrame):
         custo = produtos.calcular_custo_produto(self.produto_selecionado)
         self.label_custo.configure(text=f"Custo estimado: R$ {custo:.2f}")
 
+        prod = produtos.buscar_produto(self.produto_selecionado)
+        preco_venda = prod["preco"] if prod else 0
+        margem_reais, margem_percentual = produtos.calcular_margem_produto(self.produto_selecionado, preco_venda)
+        cor_margem = COR_LILAS_NEON if margem_reais >= 0 else COR_ALERTA
+        self.label_margem.configure(text=f"Margem: R$ {margem_reais:.2f} ({margem_percentual:.1f}%)", text_color=cor_margem)
+
     def _limpar(self):
         self.produto_selecionado = None
         self.entry_nome.delete(0, tk.END)
@@ -307,6 +413,7 @@ class AbaProdutos(ctk.CTkFrame):
         self.entry_descricao.delete(0, tk.END)
         self.lista_ficha.delete(0, tk.END)
         self.label_custo.configure(text="Custo estimado: R$ 0.00")
+        self.label_margem.configure(text="Margem: R$ 0.00 (0.0%)", text_color=COR_TEXTO)
         self.tree.selection_remove(self.tree.selection())
 
     def _salvar(self):
@@ -327,7 +434,8 @@ class AbaProdutos(ctk.CTkFrame):
             self.produto_selecionado = produtos.adicionar_produto(nome, preco, descricao)
 
         self.atualizar()
-        messagebox.showinfo("Sucesso", "Produto salvo com sucesso.")
+        self._carregar_ficha()
+        mostrar_toast(self, "Produto salvo com sucesso.")
 
     def _remover(self):
         if not self.produto_selecionado:
@@ -493,7 +601,7 @@ class AbaIngredientes(ctk.CTkFrame):
             ingredientes.adicionar_ingrediente(nome, unidade, estoque, preco)
 
         self.atualizar()
-        messagebox.showinfo("Sucesso", "Ingrediente salvo com sucesso.")
+        mostrar_toast(self, "Ingrediente salvo com sucesso.")
 
     def _remover(self):
         if not self.ingrediente_selecionado:
@@ -527,6 +635,7 @@ class AbaPedidos(ctk.CTkFrame):
         self.atualizar_callback = atualizar_callback
         self.itens_pedido = []
         self.pedido_selecionado = None
+        self.itens_do_pedido_selecionado = []
         self._montar_layout()
         self.atualizar()
 
@@ -535,21 +644,52 @@ class AbaPedidos(ctk.CTkFrame):
         area_esquerda.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=4)
 
         container_lista, self.tree = tabela(area_esquerda, [
-            ("id", "ID", 50), ("cliente", "Cliente", 150), ("data", "Data", 150), ("status", "Status", 110),
+            ("id", "ID", 45), ("cliente", "Cliente", 140), ("data", "Data", 135), ("entrega", "Entrega", 95), ("pagamento", "Pagamento", 110), ("status", "Status", 90),
         ])
         container_lista.pack(fill="both", expand=True)
         self.tree.bind("<<TreeviewSelect>>", self._selecionar_pedido)
 
-        self.text_detalhe = texto_widget(area_esquerda, height=140)
-        self.text_detalhe.pack(fill="x", pady=10)
+        detalhe = cartao(area_esquerda, titulo="Detalhes do pedido", height=280)
+        detalhe.pack(fill="x", pady=10)
+        detalhe.pack_propagate(False)
 
-        frame_status = ctk.CTkFrame(area_esquerda, fg_color="transparent")
-        frame_status.pack(fill="x")
-        rotulo(frame_status, "Status:").pack(side="left", padx=(0, 8))
-        self.combo_status = combo(frame_status, ["pendente", "em_preparo", "concluido", "cancelado"], width=150)
-        self.combo_status.pack(side="left", padx=(0, 8))
-        botao(frame_status, "Atualizar status", self._atualizar_status, width=140).pack(side="left", padx=(0, 8))
-        botao(frame_status, "Remover pedido", self._remover_pedido, perigo=True, width=130).pack(side="left")
+        self.label_info_pedido = rotulo(detalhe, "Selecione um pedido na lista acima", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"))
+        self.label_info_pedido.pack(anchor="w", padx=18)
+
+        linha_edicao = ctk.CTkFrame(detalhe, fg_color="transparent")
+        linha_edicao.pack(fill="x", padx=18, pady=(8, 6))
+
+        rotulo(linha_edicao, "Entrega:").pack(side="left")
+        self.entry_data_entrega = campo(linha_edicao, "DD/MM/AAAA", width=120)
+        self.entry_data_entrega.pack(side="left", padx=(6, 14))
+
+        rotulo(linha_edicao, "Pagamento:").pack(side="left")
+        self.combo_forma_pagamento = combo(linha_edicao, FORMAS_PAGAMENTO, width=150)
+        self.combo_forma_pagamento.pack(side="left", padx=(6, 14))
+
+        rotulo(linha_edicao, "Status:").pack(side="left")
+        self.combo_status = combo(linha_edicao, ["nao_pago", "pago"], width=120)
+        self.combo_status.pack(side="left", padx=(6, 0))
+
+        linha_botoes_detalhe = ctk.CTkFrame(detalhe, fg_color="transparent")
+        linha_botoes_detalhe.pack(fill="x", padx=18, pady=(0, 8))
+        botao(linha_botoes_detalhe, "Salvar dados do pedido", self._salvar_dados_pedido, width=180).pack(side="left", padx=(0, 8))
+        botao(linha_botoes_detalhe, "Remover pedido", self._remover_pedido, perigo=True, width=130).pack(side="left")
+
+        container_itens, self.tree_itens = tabela(detalhe, [
+            ("produto", "Produto", 160), ("quantidade", "Qtd", 60), ("preco", "Preco unit.", 90), ("subtotal", "Subtotal", 90),
+        ])
+        container_itens.configure(height=90)
+        container_itens.pack(fill="x", padx=18, pady=(0, 8))
+        container_itens.pack_propagate(False)
+
+        linha_itens_botoes = ctk.CTkFrame(detalhe, fg_color="transparent")
+        linha_itens_botoes.pack(fill="x", padx=18, pady=(0, 10))
+        botao(linha_itens_botoes, "Editar quantidade", self._editar_quantidade_item, width=140).pack(side="left", padx=(0, 8))
+        botao(linha_itens_botoes, "Remover item", self._remover_item_existente, perigo=True, width=120).pack(side="left")
+
+        self.label_total_detalhe = rotulo(detalhe, "Total: R$ 0.00", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=COR_LILAS_NEON)
+        self.label_total_detalhe.pack(anchor="e", padx=18, pady=(0, 12))
 
         painel = cartao(self, titulo="Novo pedido", width=360)
         painel.pack(side="right", fill="y", pady=4)
@@ -558,6 +698,20 @@ class AbaPedidos(ctk.CTkFrame):
         rotulo(painel, "Cliente").pack(anchor="w", padx=18)
         self.entry_cliente = campo(painel, "Nome do cliente")
         self.entry_cliente.pack(fill="x", padx=18, pady=(2, 10))
+
+        linha_datas = ctk.CTkFrame(painel, fg_color="transparent")
+        linha_datas.pack(fill="x", padx=18, pady=(0, 10))
+        col_entrega = ctk.CTkFrame(linha_datas, fg_color="transparent")
+        col_entrega.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        rotulo(col_entrega, "Entrega").pack(anchor="w")
+        self.entry_nova_data_entrega = campo(col_entrega, "DD/MM/AAAA")
+        self.entry_nova_data_entrega.pack(fill="x")
+
+        col_pagamento = ctk.CTkFrame(linha_datas, fg_color="transparent")
+        col_pagamento.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        rotulo(col_pagamento, "Pagamento").pack(anchor="w")
+        self.combo_nova_forma_pagamento = combo(col_pagamento, FORMAS_PAGAMENTO)
+        self.combo_nova_forma_pagamento.pack(fill="x")
 
         rotulo(painel, "Observacoes").pack(anchor="w", padx=18)
         self.entry_obs = campo(painel, "Opcional")
@@ -577,7 +731,7 @@ class AbaPedidos(ctk.CTkFrame):
             painel, bg=COR_PAINEL_CLARO, fg=COR_TEXTO, selectbackground=COR_SELECAO,
             selectforeground=COR_LILAS_NEON, relief="flat", borderwidth=0,
             highlightthickness=1, highlightbackground=COR_LILAS_ESCURO, highlightcolor=COR_LILAS_NEON,
-            font=("Segoe UI", 10), height=7, activestyle="none",
+            font=("Segoe UI", 10), height=6, activestyle="none",
         )
         self.lista_itens.pack(fill="x", padx=18, pady=6)
         botao(painel, "Remover item selecionado", self._remover_item, perigo=True).pack(fill="x", padx=18, pady=(0, 10))
@@ -647,13 +801,22 @@ class AbaPedidos(ctk.CTkFrame):
             messagebox.showerror("Erro", "Adicione ao menos um item ao pedido.")
             return
 
+        try:
+            data_entrega = datas.br_para_iso(self.entry_nova_data_entrega.get())
+        except ValueError:
+            messagebox.showerror("Erro", "Data de entrega invalida. Use o formato DD/MM/AAAA.")
+            return
+
         observacoes = self.entry_obs.get().strip()
-        pedido_id = pedidos.criar_pedido(cliente, self.itens_pedido, observacoes)
+        forma_pagamento = self.combo_nova_forma_pagamento.get().strip() or None
+        pedido_id = pedidos.criar_pedido(cliente, self.itens_pedido, observacoes, data_entrega, forma_pagamento)
         total = pedidos.total_pedido(pedido_id)
-        messagebox.showinfo("Sucesso", f"Pedido #{pedido_id} criado! Total: R$ {total:.2f}")
+        mostrar_toast(self, f"Pedido #{pedido_id} criado! Total: R$ {total:.2f}")
 
         self.entry_cliente.delete(0, tk.END)
         self.entry_obs.delete(0, tk.END)
+        self.entry_nova_data_entrega.delete(0, tk.END)
+        self.combo_nova_forma_pagamento.set("")
         self.itens_pedido = []
         self._atualizar_lista_itens()
         self.atualizar()
@@ -664,7 +827,9 @@ class AbaPedidos(ctk.CTkFrame):
         for item in self.tree.get_children():
             self.tree.delete(item)
         for p in pedidos.listar_pedidos():
-            self.tree.insert("", "end", iid=p["id"], values=(p["id"], p["cliente"], p["data_pedido"], p["status"]))
+            self.tree.insert("", "end", iid=p["id"], values=(
+                p["id"], p["cliente"], datas.iso_para_br(p["data_pedido"]), datas.iso_para_br(p["data_entrega"]) or "-", p["forma_pagamento"] or "-", p["status"],
+            ))
         self._carregar_produtos_combo()
 
     def _selecionar_pedido(self, event):
@@ -677,29 +842,92 @@ class AbaPedidos(ctk.CTkFrame):
             return
         self.pedido_selecionado = pedido_id
         self.combo_status.set(pedido["status"])
+        self.combo_forma_pagamento.set(pedido["forma_pagamento"] or "")
+        self.entry_data_entrega.delete(0, tk.END)
+        if pedido["data_entrega"]:
+            self.entry_data_entrega.insert(0, datas.iso_para_br(pedido["data_entrega"]))
 
-        self.text_detalhe.delete("1.0", tk.END)
-        self.text_detalhe.insert(tk.END, f"Pedido #{pedido['id']} - {pedido['cliente']}\n")
-        self.text_detalhe.insert(tk.END, f"Data: {pedido['data_pedido']}\n")
-        if pedido["observacoes"]:
-            self.text_detalhe.insert(tk.END, f"Obs: {pedido['observacoes']}\n")
-        self.text_detalhe.insert(tk.END, "\nItens:\n")
+        obs = f" | Obs: {pedido['observacoes']}" if pedido["observacoes"] else ""
+        self.label_info_pedido.configure(
+            text=f"Pedido #{pedido['id']} - {pedido['cliente']} | Criado em: {datas.iso_para_br(pedido['data_pedido'])}{obs}"
+        )
+
+        self._carregar_itens_pedido(itens)
+
+    def _carregar_itens_pedido(self, itens):
+        self.itens_do_pedido_selecionado = itens
+        for item in self.tree_itens.get_children():
+            self.tree_itens.delete(item)
         total = 0
         for i in itens:
             subtotal = i["quantidade"] * i["preco_unitario"]
             total += subtotal
-            self.text_detalhe.insert(tk.END, f"  {i['quantidade']}x {i['produto_nome']} - R$ {i['preco_unitario']:.2f} = R$ {subtotal:.2f}\n")
-        self.text_detalhe.insert(tk.END, f"\nTotal: R$ {total:.2f}")
+            self.tree_itens.insert("", "end", iid=i["id"], values=(i["produto_nome"], i["quantidade"], f"{i['preco_unitario']:.2f}", f"{subtotal:.2f}"))
+        self.label_total_detalhe.configure(text=f"Total: R$ {total:.2f}")
 
-    def _atualizar_status(self):
+    def _editar_quantidade_item(self):
         if not self.pedido_selecionado:
             messagebox.showerror("Erro", "Selecione um pedido.")
             return
-        novo_status = self.combo_status.get()
-        if not novo_status:
+        selecao = self.tree_itens.selection()
+        if not selecao:
+            messagebox.showerror("Erro", "Selecione um item da lista para editar.")
             return
-        pedidos.atualizar_status_pedido(self.pedido_selecionado, novo_status)
+        item_id = int(selecao[0])
+        item_atual = next((i for i in self.itens_do_pedido_selecionado if i["id"] == item_id), None)
+        if not item_atual:
+            return
+        nova_quantidade = simpledialog.askinteger(
+            "Editar quantidade", f"Nova quantidade para {item_atual['produto_nome']}:",
+            initialvalue=item_atual["quantidade"], minvalue=1,
+        )
+        if nova_quantidade is None:
+            return
+        pedidos.atualizar_quantidade_item(item_id, nova_quantidade)
+        self._recarregar_pedido_selecionado()
+        mostrar_toast(self, "Item atualizado.")
+
+    def _remover_item_existente(self):
+        if not self.pedido_selecionado:
+            messagebox.showerror("Erro", "Selecione um pedido.")
+            return
+        selecao = self.tree_itens.selection()
+        if not selecao:
+            messagebox.showerror("Erro", "Selecione um item da lista para remover.")
+            return
+        item_id = int(selecao[0])
+        if messagebox.askyesno("Confirmar", "Remover este item do pedido?"):
+            pedidos.remover_item_pedido(item_id)
+            self._recarregar_pedido_selecionado()
+            mostrar_toast(self, "Item removido do pedido.")
+
+    def _recarregar_pedido_selecionado(self):
+        if not self.pedido_selecionado:
+            return
+        _, itens = pedidos.buscar_pedido(self.pedido_selecionado)
+        self._carregar_itens_pedido(itens)
+        if self.atualizar_callback:
+            self.atualizar_callback()
+
+    def _salvar_dados_pedido(self):
+        if not self.pedido_selecionado:
+            messagebox.showerror("Erro", "Selecione um pedido.")
+            return
+        pedido, _ = pedidos.buscar_pedido(self.pedido_selecionado)
+        try:
+            data_entrega = datas.br_para_iso(self.entry_data_entrega.get())
+        except ValueError:
+            messagebox.showerror("Erro", "Data de entrega invalida. Use o formato DD/MM/AAAA.")
+            return
+        forma_pagamento = self.combo_forma_pagamento.get().strip() or None
+        pedidos.atualizar_dados_pedido(self.pedido_selecionado, data_entrega, forma_pagamento, pedido["observacoes"])
+
+        novo_status = self.combo_status.get()
+        if novo_status:
+            pedidos.atualizar_status_pedido(self.pedido_selecionado, novo_status)
+
         self.atualizar()
+        mostrar_toast(self, "Dados do pedido salvos.")
         if self.atualizar_callback:
             self.atualizar_callback()
 
@@ -710,7 +938,8 @@ class AbaPedidos(ctk.CTkFrame):
         if messagebox.askyesno("Confirmar", "Deseja remover este pedido?"):
             pedidos.remover_pedido(self.pedido_selecionado)
             self.pedido_selecionado = None
-            self.text_detalhe.delete("1.0", tk.END)
+            self.label_info_pedido.configure(text="Selecione um pedido na lista acima")
+            self._carregar_itens_pedido([])
             self.atualizar()
             if self.atualizar_callback:
                 self.atualizar_callback()
@@ -729,15 +958,15 @@ class AbaHistorico(ctk.CTkFrame):
         frame_filtro.pack(fill="x", pady=(4, 12))
 
         rotulo(frame_filtro, "De:").pack(side="left", padx=(0, 6))
-        self.entry_inicio = campo(frame_filtro, "AAAA-MM-DD", width=130)
+        self.entry_inicio = campo(frame_filtro, "DD/MM/AAAA", width=130)
         self.entry_inicio.pack(side="left", padx=(0, 12))
 
         rotulo(frame_filtro, "Ate:").pack(side="left", padx=(0, 6))
-        self.entry_fim = campo(frame_filtro, "AAAA-MM-DD", width=130)
+        self.entry_fim = campo(frame_filtro, "DD/MM/AAAA", width=130)
         self.entry_fim.pack(side="left", padx=(0, 12))
 
         rotulo(frame_filtro, "Status:").pack(side="left", padx=(0, 6))
-        self.combo_status = combo(frame_filtro, ["", "pendente", "em_preparo", "concluido", "cancelado"], width=150)
+        self.combo_status = combo(frame_filtro, ["", "nao_pago", "pago"], width=150)
         self.combo_status.pack(side="left", padx=(0, 12))
 
         botao(frame_filtro, "Filtrar", self.atualizar, width=110).pack(side="left", padx=(0, 8))
@@ -760,8 +989,12 @@ class AbaHistorico(ctk.CTkFrame):
         self.atualizar()
 
     def atualizar(self):
-        data_inicio = self.entry_inicio.get().strip() or None
-        data_fim = self.entry_fim.get().strip() or None
+        try:
+            data_inicio = datas.br_para_iso(self.entry_inicio.get())
+            data_fim = datas.br_para_iso(self.entry_fim.get())
+        except ValueError:
+            messagebox.showerror("Erro", "Data invalida. Use o formato DD/MM/AAAA.")
+            return
         status = self.combo_status.get().strip() or None
 
         for item in self.tree.get_children():
@@ -770,10 +1003,10 @@ class AbaHistorico(ctk.CTkFrame):
         registros = pedidos.historico_vendas(data_inicio, data_fim, status)
         for p in registros:
             total = pedidos.total_pedido(p["id"])
-            self.tree.insert("", "end", values=(p["id"], p["cliente"], p["data_pedido"], p["status"], f"{total:.2f}"))
+            self.tree.insert("", "end", values=(p["id"], p["cliente"], datas.iso_para_br(p["data_pedido"]), p["status"], f"{total:.2f}"))
 
         resumo = pedidos.resumo_vendas(data_inicio, data_fim)
-        self.label_resumo.configure(text=f"Pedidos concluidos: {resumo['quantidade_pedidos']}   |   Total vendido: R$ {resumo['total_vendas']:.2f}")
+        self.label_resumo.configure(text=f"Pedidos pagos: {resumo['quantidade_pedidos']}   |   Total vendido: R$ {resumo['total_vendas']:.2f}")
 
 
 if __name__ == "__main__":

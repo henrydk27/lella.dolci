@@ -2,6 +2,7 @@ import db
 import produtos
 import ingredientes
 import pedidos
+import datas
 
 
 def pausar():
@@ -28,6 +29,21 @@ def ler_int(mensagem, padrao=None):
             return int(valor)
         except ValueError:
             print("Valor invalido, tente novamente.")
+
+
+def ler_data_iso(mensagem, permitir_vazio=True):
+    """Le uma data digitada em DD/MM/AAAA e retorna em ISO (AAAA-MM-DD) para o banco."""
+    while True:
+        valor = input(mensagem).strip()
+        if valor == "":
+            if permitir_vazio:
+                return None
+            print("Data obrigatoria.")
+            continue
+        try:
+            return datas.br_para_iso(valor)
+        except ValueError:
+            print("Data invalida, use o formato DD/MM/AAAA.")
 
 
 # ---------------- INGREDIENTES ----------------
@@ -217,8 +233,10 @@ def menu_pedidos():
         print("1. Novo pedido")
         print("2. Listar pedidos")
         print("3. Ver detalhes de um pedido")
-        print("4. Atualizar status do pedido")
-        print("5. Remover pedido")
+        print("4. Editar/remover item de um pedido")
+        print("5. Atualizar entrega/pagamento do pedido")
+        print("6. Atualizar status do pedido")
+        print("7. Remover pedido")
         print("0. Voltar")
         opcao = input("Escolha: ").strip()
 
@@ -229,8 +247,12 @@ def menu_pedidos():
         elif opcao == "3":
             ver_pedido_tela()
         elif opcao == "4":
-            atualizar_status_tela()
+            editar_item_pedido_tela()
         elif opcao == "5":
+            atualizar_dados_pedido_tela()
+        elif opcao == "6":
+            atualizar_status_tela()
+        elif opcao == "7":
             remover_pedido_tela()
         elif opcao == "0":
             break
@@ -240,6 +262,8 @@ def menu_pedidos():
 
 def novo_pedido_tela():
     cliente = input("Nome do cliente: ").strip()
+    data_entrega = ler_data_iso("Data de entrega (DD/MM/AAAA, opcional): ")
+    forma_pagamento = input("Forma de pagamento (pix/dinheiro/cartao_debito/cartao_credito/outro, opcional): ").strip() or None
     observacoes = input("Observacoes (opcional): ").strip()
     itens = []
 
@@ -264,16 +288,16 @@ def novo_pedido_tela():
         print("Pedido cancelado (nenhum item adicionado).")
         return
 
-    pedido_id = pedidos.criar_pedido(cliente, itens, observacoes)
+    pedido_id = pedidos.criar_pedido(cliente, itens, observacoes, data_entrega, forma_pagamento)
     total = pedidos.total_pedido(pedido_id)
     print(f"\nPedido #{pedido_id} criado com sucesso! Total: R$ {total:.2f}")
 
 
 def listar_pedidos_tela():
     itens = pedidos.listar_pedidos()
-    print("\nID  Cliente               Data                 Status")
+    print("\nID  Cliente               Data                 Entrega      Pagamento        Status")
     for p in itens:
-        print(f"{p['id']:<3} {p['cliente']:<20} {p['data_pedido']:<20} {p['status']}")
+        print(f"{p['id']:<3} {p['cliente']:<20} {datas.iso_para_br(p['data_pedido']):<20} {datas.iso_para_br(p['data_entrega']) or '-':<12} {p['forma_pagamento'] or '-':<16} {p['status']}")
     if not itens:
         print("Nenhum pedido cadastrado.")
 
@@ -287,7 +311,7 @@ def ver_pedido_tela():
         return
 
     print(f"\nPedido #{pedido['id']} - {pedido['cliente']}")
-    print(f"Data: {pedido['data_pedido']} | Status: {pedido['status']}")
+    print(f"Data: {datas.iso_para_br(pedido['data_pedido'])} | Entrega: {datas.iso_para_br(pedido['data_entrega']) or '-'} | Pagamento: {pedido['forma_pagamento'] or '-'} | Status: {pedido['status']}")
     if pedido["observacoes"]:
         print(f"Obs: {pedido['observacoes']}")
     print("\nItens:")
@@ -295,17 +319,65 @@ def ver_pedido_tela():
     for i in itens:
         subtotal = i["quantidade"] * i["preco_unitario"]
         total += subtotal
-        print(f"  {i['quantidade']}x {i['produto_nome']} - R$ {i['preco_unitario']:.2f} = R$ {subtotal:.2f}")
+        print(f"  [{i['id']}] {i['quantidade']}x {i['produto_nome']} - R$ {i['preco_unitario']:.2f} = R$ {subtotal:.2f}")
     print(f"\nTotal: R$ {total:.2f}")
+
+
+def editar_item_pedido_tela():
+    id_pedido = ler_int("ID do pedido: ")
+    pedido, itens = pedidos.buscar_pedido(id_pedido)
+    if not pedido:
+        print("Pedido nao encontrado.")
+        return
+    for i in itens:
+        subtotal = i["quantidade"] * i["preco_unitario"]
+        print(f"  [{i['id']}] {i['quantidade']}x {i['produto_nome']} - R$ {i['preco_unitario']:.2f} = R$ {subtotal:.2f}")
+    if not itens:
+        print("Este pedido nao tem itens.")
+        return
+    id_item = ler_int("ID do item a editar: ")
+    print("1. Alterar quantidade")
+    print("2. Remover item")
+    opcao = input("Escolha: ").strip()
+    if opcao == "1":
+        quantidade = ler_int("Nova quantidade: ", 1)
+        pedidos.atualizar_quantidade_item(id_item, quantidade)
+        print("Quantidade atualizada.")
+    elif opcao == "2":
+        pedidos.remover_item_pedido(id_item)
+        print("Item removido.")
+    else:
+        print("Opcao invalida.")
 
 
 def atualizar_status_tela():
     listar_pedidos_tela()
     id_pedido = ler_int("\nID do pedido: ")
-    print("Status disponiveis: pendente, em_preparo, concluido, cancelado")
+    print("Status disponiveis: nao_pago, pago")
     status = input("Novo status: ").strip()
     pedidos.atualizar_status_pedido(id_pedido, status)
     print("Status atualizado.")
+
+
+def atualizar_dados_pedido_tela():
+    listar_pedidos_tela()
+    id_pedido = ler_int("\nID do pedido: ")
+    pedido, _ = pedidos.buscar_pedido(id_pedido)
+    if not pedido:
+        print("Pedido nao encontrado.")
+        return
+    entrada_data = input(f"Data de entrega [{datas.iso_para_br(pedido['data_entrega'])}] (DD/MM/AAAA): ").strip()
+    if entrada_data:
+        try:
+            data_entrega = datas.br_para_iso(entrada_data)
+        except ValueError:
+            print("Data invalida, mantendo a data anterior.")
+            data_entrega = pedido["data_entrega"]
+    else:
+        data_entrega = pedido["data_entrega"]
+    forma_pagamento = input(f"Forma de pagamento [{pedido['forma_pagamento'] or ''}]: ").strip() or pedido["forma_pagamento"]
+    pedidos.atualizar_dados_pedido(id_pedido, data_entrega, forma_pagamento, pedido["observacoes"])
+    print("Dados do pedido atualizados.")
 
 
 def remover_pedido_tela():
@@ -323,24 +395,24 @@ def menu_historico():
         print("1. Ver todo o historico")
         print("2. Filtrar por periodo")
         print("3. Filtrar por status")
-        print("4. Resumo de vendas (concluidas) por periodo")
+        print("4. Resumo de vendas (pagas) por periodo")
         print("0. Voltar")
         opcao = input("Escolha: ").strip()
 
         if opcao == "1":
             exibir_historico(pedidos.historico_vendas())
         elif opcao == "2":
-            data_inicio = input("Data inicio (AAAA-MM-DD): ").strip()
-            data_fim = input("Data fim (AAAA-MM-DD): ").strip()
+            data_inicio = ler_data_iso("Data inicio (DD/MM/AAAA): ", permitir_vazio=False)
+            data_fim = ler_data_iso("Data fim (DD/MM/AAAA): ", permitir_vazio=False)
             exibir_historico(pedidos.historico_vendas(data_inicio, data_fim))
         elif opcao == "3":
-            status = input("Status (pendente/em_preparo/concluido/cancelado): ").strip()
+            status = input("Status (nao_pago/pago): ").strip()
             exibir_historico(pedidos.historico_vendas(status=status))
         elif opcao == "4":
-            data_inicio = input("Data inicio (AAAA-MM-DD, opcional): ").strip() or None
-            data_fim = input("Data fim (AAAA-MM-DD, opcional): ").strip() or None
+            data_inicio = ler_data_iso("Data inicio (DD/MM/AAAA, opcional): ")
+            data_fim = ler_data_iso("Data fim (DD/MM/AAAA, opcional): ")
             resumo = pedidos.resumo_vendas(data_inicio, data_fim)
-            print(f"\nPedidos concluidos: {resumo['quantidade_pedidos']}")
+            print(f"\nPedidos pagos: {resumo['quantidade_pedidos']}")
             print(f"Total vendido: R$ {resumo['total_vendas']:.2f}")
         elif opcao == "0":
             break
@@ -352,12 +424,25 @@ def exibir_historico(itens):
     print("\nID  Cliente               Data                 Status")
     for p in itens:
         total = pedidos.total_pedido(p["id"])
-        print(f"{p['id']:<3} {p['cliente']:<20} {p['data_pedido']:<20} {p['status']:<12} R$ {total:.2f}")
+        print(f"{p['id']:<3} {p['cliente']:<20} {datas.iso_para_br(p['data_pedido']):<20} {p['status']:<12} R$ {total:.2f}")
     if not itens:
         print("Nenhum registro encontrado.")
 
 
 # ---------------- MENU PRINCIPAL ----------------
+
+def exibir_resumo_inicial():
+    resumo_mes = pedidos.resumo_mes_atual()
+    em_aberto = pedidos.quantidade_pedidos_em_aberto()
+    top = pedidos.produto_mais_vendido()
+
+    print(f"Vendido este mes: R$ {resumo_mes['total_vendas']:.2f} ({resumo_mes['quantidade_pedidos']} pedido(s) pago(s))")
+    print(f"Pedidos em aberto (nao pagos): {em_aberto}")
+    if top:
+        print(f"Produto mais vendido: {top['nome']} ({top['total_vendido']} unidade(s))")
+    else:
+        print("Produto mais vendido: sem vendas ainda")
+
 
 def menu_principal():
     db.init_db()
@@ -365,6 +450,8 @@ def menu_principal():
         print("\n========================================")
         print(" LELLA DOLCI - CONTROLE DE VENDAS")
         print("========================================")
+        exibir_resumo_inicial()
+        print("----------------------------------------")
         print("1. Produtos")
         print("2. Ingredientes")
         print("3. Pedidos")
