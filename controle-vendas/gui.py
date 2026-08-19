@@ -10,6 +10,7 @@ import produtos
 import ingredientes
 import pedidos
 import datas
+import fontes
 
 
 def caminho_recurso(nome_arquivo):
@@ -20,26 +21,39 @@ def caminho_recurso(nome_arquivo):
     return os.path.join(base, nome_arquivo)
 
 
-# ---------------- TEMA DARK / LILAS NEON ----------------
+fontes.inicializar(caminho_recurso("fontes"))
+FONTE_TITULO_FAMILIA = fontes.fonte_titulo()
+FONTE_CORPO_FAMILIA = fontes.fonte_corpo()
 
-COR_FUNDO = "#121014"
-COR_PAINEL = "#1b1820"
-COR_PAINEL_CLARO = "#242030"
-COR_BORDA = "#3a3345"
-COR_TEXTO = "#f0eef5"
-COR_TEXTO_SUAVE = "#a99fc2"
-COR_LILAS = "#c77dff"
-COR_LILAS_NEON = "#e0aaff"
-COR_LILAS_HOVER = "#9d4edd"
-COR_LILAS_ESCURO = "#7b2cbf"
-COR_SELECAO = "#3c2a5e"
-COR_ALERTA = "#ff6b9d"
-COR_ALERTA_HOVER = "#e0527f"
 
-RAIO = 14
+# ---------------- TEMA ORGANICO: CREME, TERRACOTA E SALVIA ----------------
 
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("dark-blue")
+COR_FUNDO = "#FBF3E6"           # creme quente
+COR_PAINEL = "#F7EADA"          # areia, um tom abaixo do fundo (cards)
+COR_PAINEL_CLARO = "#FFFCF6"    # quase branco quente (campos, tabelas)
+COR_BORDA = "#E7D4BC"           # bege-terracota suave
+COR_TEXTO = "#4A3324"           # marrom quente escuro
+COR_TEXTO_SUAVE = "#9C8468"     # taupe/marrom claro
+COR_LILAS = "#C9713F"           # terracota (nome mantido por compatibilidade)
+COR_LILAS_NEON = "#B85C2E"      # terracota vibrante (titulos e destaques)
+COR_LILAS_HOVER = "#A64E24"     # terracota hover
+COR_LILAS_ESCURO = "#C9713F"    # terracota base (botoes)
+COR_SALVIA = "#8FA377"          # verde-salvia (segundo destaque)
+COR_SALVIA_HOVER = "#748A5D"    # verde-salvia hover
+COR_SELECAO = "#E9E3CD"         # selecao com toque salvia/areia
+COR_ALERTA = "#C1483A"          # terracota-vermelho (erros/remocao)
+COR_ALERTA_HOVER = "#A63C30"
+
+RAIO = 16
+RAIO_PILULA = 22
+
+ctk.set_appearance_mode("light")
+ctk.set_default_color_theme("green")
+
+
+def fonte(tamanho=12, peso="normal", titulo=False):
+    familia = FONTE_TITULO_FAMILIA if titulo else FONTE_CORPO_FAMILIA
+    return ctk.CTkFont(family=familia, size=tamanho, weight=peso)
 
 
 def botao(master, texto, comando, perigo=False, **kwargs):
@@ -48,12 +62,12 @@ def botao(master, texto, comando, perigo=False, **kwargs):
     padrao = dict(
         text=texto,
         command=comando,
-        corner_radius=RAIO,
+        corner_radius=RAIO_PILULA,
         fg_color=cor,
         hover_color=cor_hover,
-        text_color="#120c1a" if perigo else COR_TEXTO,
-        font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
-        height=36,
+        text_color="#FFF9F0",
+        font=fonte(13, "bold"),
+        height=40,
     )
     padrao.update(kwargs)
     return ctk.CTkButton(master, **padrao)
@@ -61,14 +75,15 @@ def botao(master, texto, comando, perigo=False, **kwargs):
 
 def campo(master, placeholder="", **kwargs):
     padrao = dict(
-        corner_radius=RAIO,
+        corner_radius=RAIO_PILULA,
         fg_color=COR_PAINEL_CLARO,
-        border_color=COR_LILAS_ESCURO,
+        border_color=COR_BORDA,
         border_width=1,
         text_color=COR_TEXTO,
         placeholder_text=placeholder,
         placeholder_text_color=COR_TEXTO_SUAVE,
-        height=36,
+        font=fonte(12),
+        height=38,
     )
     padrao.update(kwargs)
     return ctk.CTkEntry(master, **padrao)
@@ -76,17 +91,18 @@ def campo(master, placeholder="", **kwargs):
 
 def combo(master, valores, **kwargs):
     padrao = dict(
-        corner_radius=RAIO,
+        corner_radius=RAIO_PILULA,
         fg_color=COR_PAINEL_CLARO,
-        button_color=COR_LILAS_ESCURO,
-        button_hover_color=COR_LILAS_HOVER,
-        border_color=COR_LILAS_ESCURO,
+        button_color=COR_SALVIA,
+        button_hover_color=COR_SALVIA_HOVER,
+        border_color=COR_BORDA,
         text_color=COR_TEXTO,
         dropdown_fg_color=COR_PAINEL_CLARO,
         dropdown_text_color=COR_TEXTO,
         dropdown_hover_color=COR_SELECAO,
+        font=fonte(12),
         values=valores,
-        height=36,
+        height=38,
         state="readonly",
     )
     padrao.update(kwargs)
@@ -94,18 +110,18 @@ def combo(master, valores, **kwargs):
 
 
 def cartao(master, titulo=None, **kwargs):
-    padrao = dict(corner_radius=18, fg_color=COR_PAINEL, border_color=COR_LILAS_ESCURO, border_width=1)
+    padrao = dict(corner_radius=RAIO, fg_color=COR_PAINEL, border_color=COR_BORDA, border_width=1)
     padrao.update(kwargs)
     frame = ctk.CTkFrame(master, **padrao)
     if titulo:
         ctk.CTkLabel(
-            frame, text=titulo, font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"), text_color=COR_LILAS_NEON
-        ).pack(anchor="w", padx=18, pady=(16, 6))
+            frame, text=titulo, font=fonte(15, titulo=True), text_color=COR_LILAS_NEON
+        ).pack(anchor="w", padx=20, pady=(18, 8))
     return frame
 
 
 def rotulo(master, texto, **kwargs):
-    padrao = dict(text=texto, text_color=COR_TEXTO, font=ctk.CTkFont(family="Segoe UI", size=12))
+    padrao = dict(text=texto, text_color=COR_TEXTO, font=fonte(12))
     padrao.update(kwargs)
     return ctk.CTkLabel(master, **padrao)
 
@@ -122,8 +138,8 @@ def configurar_estilo_treeview(root):
         foreground=COR_TEXTO,
         bordercolor=COR_PAINEL,
         borderwidth=0,
-        rowheight=30,
-        font=("Segoe UI", 10),
+        rowheight=32,
+        font=(FONTE_CORPO_FAMILIA, 10),
     )
     style.map(
         "Custom.Treeview",
@@ -134,7 +150,7 @@ def configurar_estilo_treeview(root):
         "Custom.Treeview.Heading",
         background=COR_PAINEL,
         foreground=COR_LILAS_NEON,
-        font=("Segoe UI", 10, "bold"),
+        font=(FONTE_CORPO_FAMILIA, 10, "bold"),
         borderwidth=0,
         relief="flat",
     )
@@ -145,7 +161,7 @@ def configurar_estilo_treeview(root):
 
 def tabela(master, colunas):
     """Cria um Treeview dentro de um container arredondado (CTkFrame) para simular cantos suaves."""
-    container = ctk.CTkFrame(master, corner_radius=18, fg_color=COR_PAINEL_CLARO, border_color=COR_LILAS_ESCURO, border_width=1)
+    container = ctk.CTkFrame(master, corner_radius=RAIO, fg_color=COR_PAINEL_CLARO, border_color=COR_BORDA, border_width=1)
     tree = ttk.Treeview(container, columns=[c[0] for c in colunas], show="headings", style="Custom.Treeview")
     for chave, titulo, largura in colunas:
         tree.heading(chave, text=titulo)
@@ -161,17 +177,17 @@ def mostrar_toast(widget, mensagem, sucesso=True):
     """Banner discreto que aparece por alguns segundos e some sozinho,
     no lugar de um popup do Windows que interrompe o fluxo."""
     root = widget.winfo_toplevel()
-    cor_borda = COR_LILAS_NEON if sucesso else COR_ALERTA
+    cor_borda = COR_SALVIA if sucesso else COR_ALERTA
     toast = ctk.CTkLabel(
         root,
         text=mensagem,
         fg_color=COR_PAINEL_CLARO,
         text_color=COR_TEXTO,
-        corner_radius=RAIO,
+        corner_radius=RAIO_PILULA,
         border_color=cor_borda,
         border_width=2,
-        font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-        padx=18,
+        font=fonte(12, "bold"),
+        padx=20,
         pady=10,
     )
     toast.place(relx=0.5, rely=0.94, anchor="s")
@@ -183,8 +199,8 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Lella Dolci - Controle de Vendas")
-        self.geometry("1080x680")
-        self.minsize(920, 580)
+        self.geometry("1080x800")
+        self.minsize(960, 680)
         self.configure(fg_color=COR_FUNDO)
 
         try:
@@ -197,21 +213,22 @@ class App(ctk.CTk):
         cabecalho = ctk.CTkFrame(self, fg_color="transparent")
         cabecalho.pack(fill="x", padx=22, pady=(18, 6))
         ctk.CTkLabel(
-            cabecalho, text="Lella Dolci", font=ctk.CTkFont(family="Segoe UI", size=24, weight="bold"), text_color=COR_LILAS_NEON
+            cabecalho, text="Lella Dolci", font=fonte(26, titulo=True), text_color=COR_LILAS_NEON
         ).pack(side="left")
         ctk.CTkLabel(
-            cabecalho, text="   controle de vendas", font=ctk.CTkFont(family="Segoe UI", size=13), text_color=COR_TEXTO_SUAVE
+            cabecalho, text="   controle de vendas", font=fonte(13), text_color=COR_TEXTO_SUAVE
         ).pack(side="left", pady=(6, 0))
 
         self.abas = ctk.CTkTabview(
             self,
-            corner_radius=18,
+            corner_radius=RAIO,
             fg_color=COR_PAINEL,
             segmented_button_fg_color=COR_PAINEL,
             segmented_button_selected_color=COR_LILAS_ESCURO,
             segmented_button_selected_hover_color=COR_LILAS_HOVER,
             segmented_button_unselected_color=COR_PAINEL,
             segmented_button_unselected_hover_color=COR_SELECAO,
+            segmented_button_font=fonte(12, "bold"),
             text_color=COR_TEXTO,
             command=self._ao_trocar_aba,
         )
@@ -264,7 +281,7 @@ class AbaInicio(ctk.CTkFrame):
 
     def _montar_layout(self):
         ctk.CTkLabel(
-            self, text="Resumo geral", font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"), text_color=COR_LILAS_NEON
+            self, text="Resumo geral", font=fonte(20, titulo=True), text_color=COR_LILAS_NEON
         ).pack(anchor="w", pady=(4, 16))
 
         linha_cards = ctk.CTkFrame(self, fg_color="transparent")
@@ -282,9 +299,9 @@ class AbaInicio(ctk.CTkFrame):
     def _criar_card(self, master, titulo):
         card = cartao(master, titulo=titulo, height=140)
         card.pack_propagate(False)
-        valor = rotulo(card, "-", font=ctk.CTkFont(family="Segoe UI", size=26, weight="bold"), text_color=COR_TEXTO)
+        valor = rotulo(card, "-", font=fonte(24, titulo=True), text_color=COR_TEXTO)
         valor.pack(anchor="w", padx=18, pady=(6, 4))
-        detalhe = rotulo(card, "", font=ctk.CTkFont(family="Segoe UI", size=12), text_color=COR_TEXTO_SUAVE)
+        detalhe = rotulo(card, "", font=fonte(12), text_color=COR_TEXTO_SUAVE)
         detalhe.pack(anchor="w", padx=18)
         card.valor_label = valor
         card.detalhe_label = detalhe
@@ -330,43 +347,43 @@ class AbaProdutos(ctk.CTkFrame):
 
         rotulo(painel, "Nome").pack(anchor="w", padx=18)
         self.entry_nome = campo(painel, "Ex: Bolo de chocolate")
-        self.entry_nome.pack(fill="x", padx=18, pady=(2, 10))
+        self.entry_nome.pack(fill="x", padx=18, pady=(2, 8))
 
         rotulo(painel, "Preco de venda").pack(anchor="w", padx=18)
         self.entry_preco = campo(painel, "Ex: 45.00")
-        self.entry_preco.pack(fill="x", padx=18, pady=(2, 10))
+        self.entry_preco.pack(fill="x", padx=18, pady=(2, 8))
 
         rotulo(painel, "Descricao").pack(anchor="w", padx=18)
         self.entry_descricao = campo(painel, "Opcional")
-        self.entry_descricao.pack(fill="x", padx=18, pady=(2, 10))
+        self.entry_descricao.pack(fill="x", padx=18, pady=(2, 8))
 
         frame_botoes = ctk.CTkFrame(painel, fg_color="transparent")
-        frame_botoes.pack(fill="x", padx=18, pady=(4, 10))
+        frame_botoes.pack(fill="x", padx=18, pady=(4, 8))
         botao(frame_botoes, "Novo", self._limpar, width=90).pack(side="left", padx=(0, 6))
         botao(frame_botoes, "Salvar", self._salvar, width=90).pack(side="left", padx=6)
         botao(frame_botoes, "Remover", self._remover, perigo=True, width=90).pack(side="left", padx=6)
 
-        ctk.CTkFrame(painel, height=1, fg_color=COR_LILAS_ESCURO).pack(fill="x", padx=18, pady=10)
-        rotulo(painel, "Ficha tecnica (ingredientes)", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=COR_LILAS_NEON).pack(anchor="w", padx=18)
+        ctk.CTkFrame(painel, height=1, fg_color=COR_BORDA).pack(fill="x", padx=18, pady=8)
+        rotulo(painel, "Ficha tecnica (ingredientes)", font=fonte(13, "bold"), text_color=COR_LILAS_NEON).pack(anchor="w", padx=18)
 
         self.lista_ficha = tk.Listbox(
             painel, bg=COR_PAINEL_CLARO, fg=COR_TEXTO, selectbackground=COR_SELECAO,
             selectforeground=COR_LILAS_NEON, relief="flat", borderwidth=0,
             highlightthickness=1, highlightbackground=COR_LILAS_ESCURO, highlightcolor=COR_LILAS_NEON,
-            font=("Segoe UI", 10), height=7, activestyle="none",
+            font=(FONTE_CORPO_FAMILIA, 10), height=5, activestyle="none",
         )
-        self.lista_ficha.pack(fill="x", padx=18, pady=8)
+        self.lista_ficha.pack(fill="x", padx=18, pady=6)
 
         frame_ficha_botoes = ctk.CTkFrame(painel, fg_color="transparent")
-        frame_ficha_botoes.pack(fill="x", padx=18, pady=(0, 6))
-        botao(frame_ficha_botoes, "+ ingrediente", self._adicionar_ingrediente_ficha, width=140).pack(side="left", padx=(0, 6))
-        botao(frame_ficha_botoes, "Remover", self._remover_ingrediente_ficha, perigo=True, width=100).pack(side="left")
+        frame_ficha_botoes.pack(fill="x", padx=18, pady=(0, 4))
+        botao(frame_ficha_botoes, "+ ingrediente", self._adicionar_ingrediente_ficha, width=140, height=34).pack(side="left", padx=(0, 6))
+        botao(frame_ficha_botoes, "Remover", self._remover_ingrediente_ficha, perigo=True, width=100, height=34).pack(side="left")
 
-        self.label_custo = rotulo(painel, "Custo estimado: R$ 0.00", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=COR_LILAS_NEON)
+        self.label_custo = rotulo(painel, "Custo estimado: R$ 0.00", font=fonte(13, "bold"), text_color=COR_LILAS_NEON)
         self.label_custo.pack(anchor="w", padx=18, pady=(8, 2))
 
-        self.label_margem = rotulo(painel, "Margem: R$ 0.00 (0.0%)", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=COR_TEXTO)
-        self.label_margem.pack(anchor="w", padx=18, pady=(0, 16))
+        self.label_margem = rotulo(painel, "Margem: R$ 0.00 (0.0%)", font=fonte(13, "bold"), text_color=COR_TEXTO)
+        self.label_margem.pack(anchor="w", padx=18, pady=(0, 12))
 
     def atualizar(self):
         for item in self.tree.get_children():
@@ -653,7 +670,7 @@ class AbaPedidos(ctk.CTkFrame):
         detalhe.pack(fill="x", pady=10)
         detalhe.pack_propagate(False)
 
-        self.label_info_pedido = rotulo(detalhe, "Selecione um pedido na lista acima", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"))
+        self.label_info_pedido = rotulo(detalhe, "Selecione um pedido na lista acima", font=fonte(12, "bold"))
         self.label_info_pedido.pack(anchor="w", padx=18)
 
         linha_edicao = ctk.CTkFrame(detalhe, fg_color="transparent")
@@ -688,7 +705,7 @@ class AbaPedidos(ctk.CTkFrame):
         botao(linha_itens_botoes, "Editar quantidade", self._editar_quantidade_item, width=140).pack(side="left", padx=(0, 8))
         botao(linha_itens_botoes, "Remover item", self._remover_item_existente, perigo=True, width=120).pack(side="left")
 
-        self.label_total_detalhe = rotulo(detalhe, "Total: R$ 0.00", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=COR_LILAS_NEON)
+        self.label_total_detalhe = rotulo(detalhe, "Total: R$ 0.00", font=fonte(13, "bold"), text_color=COR_LILAS_NEON)
         self.label_total_detalhe.pack(anchor="e", padx=18, pady=(0, 12))
 
         painel = cartao(self, titulo="Novo pedido", width=360)
@@ -731,12 +748,12 @@ class AbaPedidos(ctk.CTkFrame):
             painel, bg=COR_PAINEL_CLARO, fg=COR_TEXTO, selectbackground=COR_SELECAO,
             selectforeground=COR_LILAS_NEON, relief="flat", borderwidth=0,
             highlightthickness=1, highlightbackground=COR_LILAS_ESCURO, highlightcolor=COR_LILAS_NEON,
-            font=("Segoe UI", 10), height=6, activestyle="none",
+            font=(FONTE_CORPO_FAMILIA, 10), height=6, activestyle="none",
         )
         self.lista_itens.pack(fill="x", padx=18, pady=6)
         botao(painel, "Remover item selecionado", self._remover_item, perigo=True).pack(fill="x", padx=18, pady=(0, 10))
 
-        self.label_total = rotulo(painel, "Total: R$ 0.00", font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"), text_color=COR_LILAS_NEON)
+        self.label_total = rotulo(painel, "Total: R$ 0.00", font=fonte(15, "bold"), text_color=COR_LILAS_NEON)
         self.label_total.pack(padx=18, pady=(4, 10))
 
         botao(painel, "Finalizar pedido", self._finalizar_pedido, height=42).pack(fill="x", padx=18, pady=(0, 18))
@@ -978,7 +995,7 @@ class AbaHistorico(ctk.CTkFrame):
         container_lista.pack(fill="both", expand=True)
 
         self.label_resumo = rotulo(
-            self, "", font=ctk.CTkFont(family="Segoe UI", size=15, weight="bold"), text_color=COR_LILAS_NEON
+            self, "", font=fonte(15, "bold"), text_color=COR_LILAS_NEON
         )
         self.label_resumo.pack(pady=14)
 

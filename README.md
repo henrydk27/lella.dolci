@@ -25,7 +25,7 @@ pip install customtkinter
 python controle-vendas/gui.py
 ```
 
-Abre uma janela com tema dark, cantos arredondados e detalhes lilas neon, com abas para Inicio (dashboard), Produtos, Ingredientes, Pedidos e Historico.
+Abre uma janela com um design organico: fundo creme/areia, detalhes em terracota e verde-salvia, titulos na fonte Caprasimo sobre texto em Figtree, cantos arredondados que viram pilulas em botoes e campos. Abas para Inicio (dashboard), Produtos, Ingredientes, Pedidos e Historico. As fontes ficam em `controle-vendas/fontes/` e sao carregadas automaticamente pelo programa (nao precisam estar instaladas no Windows).
 
 ### Executavel (.exe)
 
@@ -36,7 +36,7 @@ Para gerar novamente o .exe apos alterar o codigo:
 ```bash
 pip install pyinstaller customtkinter pillow
 cd controle-vendas
-python -m PyInstaller --noconfirm --onefile --windowed --name "LellaDolci-ControleDeVendas" --icon "icone.ico" --add-data "icone.ico;." gui.py
+python -m PyInstaller --noconfirm --onefile --windowed --name "LellaDolci-ControleDeVendas" --icon "icone.ico" --add-data "icone.ico;." --add-data "fontes;fontes" gui.py
 ```
 
 O executavel final fica em `controle-vendas/dist/`. O banco de dados (`lella_dolci.db`) e criado na mesma pasta onde o .exe for executado.
@@ -64,3 +64,5 @@ Confirmacoes de sucesso (produto salvo, item atualizado, pedido criado, etc.) ap
 Os dados ficam armazenados em `controle-vendas/lella_dolci.db` (SQLite), criado automaticamente na primeira execucao.
 
 O icone do programa (`controle-vendas/icone.ico`) foi gerado a partir da logo `lella sem fundo.png`.
+
+As fontes usadas na interface (`controle-vendas/fontes/Caprasimo-Regular.ttf` e `Figtree-*.ttf`, do Google Fonts) sao carregadas como fontes privadas do processo via `controle-vendas/fontes.py`, sem precisar instalar no sistema. Se por algum motivo o carregamento falhar (fora do Windows, por exemplo), o programa usa Georgia/Segoe UI como alternativa.
