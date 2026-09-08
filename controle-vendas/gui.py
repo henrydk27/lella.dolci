@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 
@@ -8,6 +9,8 @@ import customtkinter as ctk
 import db
 import produtos
 import ingredientes
+import embalagens
+import gastos
 import pedidos
 import datas
 import fontes
@@ -109,6 +112,12 @@ def combo(master, valores, **kwargs):
     return ctk.CTkComboBox(master, **padrao)
 
 
+def combo_editavel(master, valores, **kwargs):
+    """Como combo(), mas permite digitar um valor novo alem dos sugeridos
+    (usado para categoria de produto, que e uma lista livre)."""
+    return combo(master, valores, state="normal", **kwargs)
+
+
 def cartao(master, titulo=None, **kwargs):
     padrao = dict(corner_radius=RAIO, fg_color=COR_PAINEL, border_color=COR_BORDA, border_width=1)
     padrao.update(kwargs)
@@ -118,6 +127,26 @@ def cartao(master, titulo=None, **kwargs):
             frame, text=titulo, font=fonte(15, titulo=True), text_color=COR_LILAS_NEON
         ).pack(anchor="w", padx=20, pady=(18, 8))
     return frame
+
+
+def cartao_rolavel(master, titulo=None, **kwargs):
+    """Painel com o mesmo visual do cartao(), mas com scroll vertical
+    para formularios longos (ex: receita de um produto)."""
+    padrao = dict(
+        corner_radius=RAIO,
+        fg_color=COR_PAINEL,
+        border_color=COR_BORDA,
+        border_width=1,
+        label_text=titulo or "",
+        label_font=fonte(15, titulo=True),
+        label_text_color=COR_LILAS_NEON,
+        label_fg_color=COR_PAINEL,
+        label_anchor="w",
+        scrollbar_button_color=COR_BORDA,
+        scrollbar_button_hover_color=COR_LILAS_ESCURO,
+    )
+    padrao.update(kwargs)
+    return ctk.CTkScrollableFrame(master, **padrao)
 
 
 def rotulo(master, texto, **kwargs):
@@ -237,8 +266,10 @@ class App(ctk.CTk):
         self.abas.add("Inicio")
         self.abas.add("Produtos")
         self.abas.add("Ingredientes")
+        self.abas.add("Embalagens")
         self.abas.add("Pedidos")
         self.abas.add("Historico")
+        self.abas.add("Gastos")
 
         self.aba_inicio = AbaInicio(self.abas.tab("Inicio"))
         self.aba_inicio.pack(fill="both", expand=True)
@@ -249,11 +280,17 @@ class App(ctk.CTk):
         self.aba_ingredientes = AbaIngredientes(self.abas.tab("Ingredientes"))
         self.aba_ingredientes.pack(fill="both", expand=True)
 
+        self.aba_embalagens = AbaEmbalagens(self.abas.tab("Embalagens"))
+        self.aba_embalagens.pack(fill="both", expand=True)
+
         self.aba_pedidos = AbaPedidos(self.abas.tab("Pedidos"), atualizar_callback=self.atualizar_tudo)
         self.aba_pedidos.pack(fill="both", expand=True)
 
         self.aba_historico = AbaHistorico(self.abas.tab("Historico"))
         self.aba_historico.pack(fill="both", expand=True)
+
+        self.aba_gastos = AbaGastos(self.abas.tab("Gastos"))
+        self.aba_gastos.pack(fill="both", expand=True)
 
         self.abas.set("Inicio")
 
@@ -269,6 +306,8 @@ class App(ctk.CTk):
             self.aba_pedidos.atualizar()
         elif aba_atual == "Inicio":
             self.aba_inicio.atualizar()
+        elif aba_atual == "Produtos":
+            self.aba_produtos.atualizar_categorias()
 
 
 # ---------------- ABA INICIO (DASHBOARD) ----------------
@@ -295,6 +334,17 @@ class AbaInicio(ctk.CTkFrame):
 
         self.card_mais_vendido = self._criar_card(linha_cards, "Produto mais vendido")
         self.card_mais_vendido.pack(side="left", fill="both", expand=True, padx=(10, 0))
+
+        ctk.CTkLabel(
+            self, text="Vendas por categoria (ano atual)", font=fonte(16, titulo=True), text_color=COR_LILAS_NEON
+        ).pack(anchor="w", pady=(20, 8))
+
+        container_categorias, self.tree_categorias = tabela(self, [
+            ("categoria", "Categoria", 260), ("quantidade", "Quantidade vendida", 180),
+        ])
+        container_categorias.configure(height=180)
+        container_categorias.pack(fill="x")
+        container_categorias.pack_propagate(False)
 
     def _criar_card(self, master, titulo):
         card = cartao(master, titulo=titulo, height=140)
@@ -324,6 +374,12 @@ class AbaInicio(ctk.CTkFrame):
             self.card_mais_vendido.valor_label.configure(text="-")
             self.card_mais_vendido.detalhe_label.configure(text="sem vendas ainda")
 
+        ano_atual = datetime.now().strftime("%Y")
+        for item in self.tree_categorias.get_children():
+            self.tree_categorias.delete(item)
+        for linha in pedidos.vendas_por_categoria(ano_atual):
+            self.tree_categorias.insert("", "end", values=(linha["categoria"], linha["total"]))
+
 
 # ---------------- ABA PRODUTOS ----------------
 
@@ -336,60 +392,96 @@ class AbaProdutos(ctk.CTkFrame):
 
     def _montar_layout(self):
         container_lista, self.tree = tabela(self, [
-            ("id", "ID", 50), ("nome", "Nome", 200), ("preco", "Preco", 90), ("descricao", "Descricao", 240),
+            ("id", "ID", 45), ("nome", "Nome", 170), ("categoria", "Categoria", 120), ("preco", "Preco", 80), ("descricao", "Descricao", 180),
         ])
         container_lista.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=4)
         self.tree.bind("<<TreeviewSelect>>", self._selecionar)
 
-        painel = cartao(self, titulo="Produto", width=340)
+        painel = cartao_rolavel(self, titulo="Produto (receita e custo)", width=380)
         painel.pack(side="right", fill="y", pady=4)
-        painel.pack_propagate(False)
 
-        rotulo(painel, "Nome").pack(anchor="w", padx=18)
+        rotulo(painel, "Nome").pack(anchor="w", padx=2)
         self.entry_nome = campo(painel, "Ex: Bolo de chocolate")
-        self.entry_nome.pack(fill="x", padx=18, pady=(2, 8))
+        self.entry_nome.pack(fill="x", padx=2, pady=(2, 8))
 
-        rotulo(painel, "Preco de venda").pack(anchor="w", padx=18)
-        self.entry_preco = campo(painel, "Ex: 45.00")
-        self.entry_preco.pack(fill="x", padx=18, pady=(2, 8))
+        rotulo(painel, "Categoria").pack(anchor="w", padx=2)
+        self.combo_categoria = combo_editavel(painel, produtos.listar_categorias())
+        self.combo_categoria.pack(fill="x", padx=2, pady=(2, 8))
 
-        rotulo(painel, "Descricao").pack(anchor="w", padx=18)
+        linha_preco_taxa = ctk.CTkFrame(painel, fg_color="transparent")
+        linha_preco_taxa.pack(fill="x", padx=2, pady=(0, 8))
+        col_preco = ctk.CTkFrame(linha_preco_taxa, fg_color="transparent")
+        col_preco.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        rotulo(col_preco, "Preco de venda").pack(anchor="w")
+        self.entry_preco = campo(col_preco, "Ex: 45.00")
+        self.entry_preco.pack(fill="x")
+        col_taxa = ctk.CTkFrame(linha_preco_taxa, fg_color="transparent")
+        col_taxa.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        rotulo(col_taxa, "Taxa utilidades (%)").pack(anchor="w")
+        self.entry_taxa_overhead = campo(col_taxa, "Ex: 10")
+        self.entry_taxa_overhead.pack(fill="x")
+
+        rotulo(painel, "Descricao").pack(anchor="w", padx=2)
         self.entry_descricao = campo(painel, "Opcional")
-        self.entry_descricao.pack(fill="x", padx=18, pady=(2, 8))
+        self.entry_descricao.pack(fill="x", padx=2, pady=(2, 8))
 
         frame_botoes = ctk.CTkFrame(painel, fg_color="transparent")
-        frame_botoes.pack(fill="x", padx=18, pady=(4, 8))
+        frame_botoes.pack(fill="x", padx=2, pady=(4, 8))
         botao(frame_botoes, "Novo", self._limpar, width=90).pack(side="left", padx=(0, 6))
         botao(frame_botoes, "Salvar", self._salvar, width=90).pack(side="left", padx=6)
         botao(frame_botoes, "Remover", self._remover, perigo=True, width=90).pack(side="left", padx=6)
 
-        ctk.CTkFrame(painel, height=1, fg_color=COR_BORDA).pack(fill="x", padx=18, pady=8)
-        rotulo(painel, "Ficha tecnica (ingredientes)", font=fonte(13, "bold"), text_color=COR_LILAS_NEON).pack(anchor="w", padx=18)
+        ctk.CTkFrame(painel, height=1, fg_color=COR_BORDA).pack(fill="x", padx=2, pady=8)
+        rotulo(painel, "Ingredientes da receita", font=fonte(13, "bold"), text_color=COR_LILAS_NEON).pack(anchor="w", padx=2)
 
         self.lista_ficha = tk.Listbox(
             painel, bg=COR_PAINEL_CLARO, fg=COR_TEXTO, selectbackground=COR_SELECAO,
             selectforeground=COR_LILAS_NEON, relief="flat", borderwidth=0,
             highlightthickness=1, highlightbackground=COR_LILAS_ESCURO, highlightcolor=COR_LILAS_NEON,
-            font=(FONTE_CORPO_FAMILIA, 10), height=5, activestyle="none",
+            font=(FONTE_CORPO_FAMILIA, 10), height=4, activestyle="none",
         )
-        self.lista_ficha.pack(fill="x", padx=18, pady=6)
+        self.lista_ficha.pack(fill="x", padx=2, pady=6)
 
         frame_ficha_botoes = ctk.CTkFrame(painel, fg_color="transparent")
-        frame_ficha_botoes.pack(fill="x", padx=18, pady=(0, 4))
+        frame_ficha_botoes.pack(fill="x", padx=2, pady=(0, 4))
         botao(frame_ficha_botoes, "+ ingrediente", self._adicionar_ingrediente_ficha, width=140, height=34).pack(side="left", padx=(0, 6))
         botao(frame_ficha_botoes, "Remover", self._remover_ingrediente_ficha, perigo=True, width=100, height=34).pack(side="left")
 
-        self.label_custo = rotulo(painel, "Custo estimado: R$ 0.00", font=fonte(13, "bold"), text_color=COR_LILAS_NEON)
-        self.label_custo.pack(anchor="w", padx=18, pady=(8, 2))
+        ctk.CTkFrame(painel, height=1, fg_color=COR_BORDA).pack(fill="x", padx=2, pady=8)
+        rotulo(painel, "Embalagens usadas", font=fonte(13, "bold"), text_color=COR_LILAS_NEON).pack(anchor="w", padx=2)
+
+        self.lista_embalagens_produto = tk.Listbox(
+            painel, bg=COR_PAINEL_CLARO, fg=COR_TEXTO, selectbackground=COR_SELECAO,
+            selectforeground=COR_LILAS_NEON, relief="flat", borderwidth=0,
+            highlightthickness=1, highlightbackground=COR_LILAS_ESCURO, highlightcolor=COR_LILAS_NEON,
+            font=(FONTE_CORPO_FAMILIA, 10), height=4, activestyle="none",
+        )
+        self.lista_embalagens_produto.pack(fill="x", padx=2, pady=6)
+
+        frame_embalagem_botoes = ctk.CTkFrame(painel, fg_color="transparent")
+        frame_embalagem_botoes.pack(fill="x", padx=2, pady=(0, 4))
+        botao(frame_embalagem_botoes, "+ embalagem", self._adicionar_embalagem_ficha, width=140, height=34).pack(side="left", padx=(0, 6))
+        botao(frame_embalagem_botoes, "Remover", self._remover_embalagem_ficha, perigo=True, width=100, height=34).pack(side="left")
+
+        ctk.CTkFrame(painel, height=1, fg_color=COR_BORDA).pack(fill="x", padx=2, pady=8)
+
+        self.label_custo = rotulo(painel, "Custo: ingredientes R$ 0.00 + utilidades R$ 0.00 + embalagem R$ 0.00", font=fonte(12, "bold"), text_color=COR_LILAS_NEON, justify="left")
+        self.label_custo.pack(anchor="w", padx=2, pady=(4, 2))
+
+        self.label_custo_total = rotulo(painel, "Custo total: R$ 0.00", font=fonte(13, "bold"), text_color=COR_LILAS_NEON)
+        self.label_custo_total.pack(anchor="w", padx=2, pady=(0, 2))
 
         self.label_margem = rotulo(painel, "Margem: R$ 0.00 (0.0%)", font=fonte(13, "bold"), text_color=COR_TEXTO)
-        self.label_margem.pack(anchor="w", padx=18, pady=(0, 12))
+        self.label_margem.pack(anchor="w", padx=2, pady=(0, 12))
 
     def atualizar(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
         for p in produtos.listar_produtos():
-            self.tree.insert("", "end", iid=p["id"], values=(p["id"], p["nome"], f"{p['preco']:.2f}", p["descricao"] or ""))
+            self.tree.insert("", "end", iid=p["id"], values=(p["id"], p["nome"], p["categoria"] or "-", f"{p['preco']:.2f}", p["descricao"] or ""))
+
+    def atualizar_categorias(self):
+        self.combo_categoria.configure(values=produtos.listar_categorias())
 
     def _selecionar(self, event):
         selecao = self.tree.selection()
@@ -402,20 +494,30 @@ class AbaProdutos(ctk.CTkFrame):
         self.produto_selecionado = produto_id
         self.entry_nome.delete(0, tk.END)
         self.entry_nome.insert(0, prod["nome"])
+        self.combo_categoria.set(prod["categoria"] or "")
         self.entry_preco.delete(0, tk.END)
         self.entry_preco.insert(0, str(prod["preco"]))
+        self.entry_taxa_overhead.delete(0, tk.END)
+        self.entry_taxa_overhead.insert(0, str(prod["taxa_overhead"]))
         self.entry_descricao.delete(0, tk.END)
         self.entry_descricao.insert(0, prod["descricao"] or "")
         self._carregar_ficha()
 
     def _carregar_ficha(self):
         self.lista_ficha.delete(0, tk.END)
+        self.lista_embalagens_produto.delete(0, tk.END)
         if not self.produto_selecionado:
             return
         for i in produtos.listar_ingredientes_do_produto(self.produto_selecionado):
             self.lista_ficha.insert(tk.END, f"[{i['id']}] {i['nome']} - {i['quantidade']} {i['unidade']}")
-        custo = produtos.calcular_custo_produto(self.produto_selecionado)
-        self.label_custo.configure(text=f"Custo estimado: R$ {custo:.2f}")
+        for e in produtos.listar_embalagens_do_produto(self.produto_selecionado):
+            self.lista_embalagens_produto.insert(tk.END, f"[{e['id']}] {e['nome']} - {e['quantidade']}x")
+
+        detalhe = produtos.detalhar_custo_produto(self.produto_selecionado)
+        self.label_custo.configure(
+            text=f"Custo: ingredientes R$ {detalhe['ingredientes']:.2f} + utilidades R$ {detalhe['overhead']:.2f} + embalagem R$ {detalhe['embalagens']:.2f}"
+        )
+        self.label_custo_total.configure(text=f"Custo total: R$ {detalhe['total']:.2f}")
 
         prod = produtos.buscar_produto(self.produto_selecionado)
         preco_venda = prod["preco"] if prod else 0
@@ -426,10 +528,14 @@ class AbaProdutos(ctk.CTkFrame):
     def _limpar(self):
         self.produto_selecionado = None
         self.entry_nome.delete(0, tk.END)
+        self.combo_categoria.set("")
         self.entry_preco.delete(0, tk.END)
+        self.entry_taxa_overhead.delete(0, tk.END)
         self.entry_descricao.delete(0, tk.END)
         self.lista_ficha.delete(0, tk.END)
-        self.label_custo.configure(text="Custo estimado: R$ 0.00")
+        self.lista_embalagens_produto.delete(0, tk.END)
+        self.label_custo.configure(text="Custo: ingredientes R$ 0.00 + utilidades R$ 0.00 + embalagem R$ 0.00")
+        self.label_custo_total.configure(text="Custo total: R$ 0.00")
         self.label_margem.configure(text="Margem: R$ 0.00 (0.0%)", text_color=COR_TEXTO)
         self.tree.selection_remove(self.tree.selection())
 
@@ -443,14 +549,21 @@ class AbaProdutos(ctk.CTkFrame):
         except ValueError:
             messagebox.showerror("Erro", "Preco invalido.")
             return
+        try:
+            taxa_overhead = float(self.entry_taxa_overhead.get().replace(",", ".") or 10)
+        except ValueError:
+            messagebox.showerror("Erro", "Taxa de utilidades invalida.")
+            return
+        categoria = self.combo_categoria.get().strip() or None
         descricao = self.entry_descricao.get().strip()
 
         if self.produto_selecionado:
-            produtos.atualizar_produto(self.produto_selecionado, nome, preco, descricao)
+            produtos.atualizar_produto(self.produto_selecionado, nome, preco, descricao, categoria, taxa_overhead)
         else:
-            self.produto_selecionado = produtos.adicionar_produto(nome, preco, descricao)
+            self.produto_selecionado = produtos.adicionar_produto(nome, preco, descricao, categoria, taxa_overhead)
 
         self.atualizar()
+        self.atualizar_categorias()
         self._carregar_ficha()
         mostrar_toast(self, "Produto salvo com sucesso.")
 
@@ -489,6 +602,34 @@ class AbaProdutos(ctk.CTkFrame):
         texto = self.lista_ficha.get(selecao[0])
         relacao_id = int(texto.split("]")[0].replace("[", ""))
         produtos.remover_ingrediente_do_produto(relacao_id)
+        self._carregar_ficha()
+
+    def _adicionar_embalagem_ficha(self):
+        if not self.produto_selecionado:
+            messagebox.showerror("Erro", "Salve o produto antes de adicionar embalagens.")
+            return
+        itens = embalagens.listar_embalagens()
+        if not itens:
+            messagebox.showinfo("Aviso", "Cadastre embalagens primeiro (aba Embalagens).")
+            return
+        nomes = [f"{e['id']} - {e['nome']}" for e in itens]
+        escolha = SelecionarDialog(self, "Escolha a embalagem", nomes).resultado
+        if escolha is None:
+            return
+        embalagem_id = itens[escolha]["id"]
+        quantidade = simpledialog.askfloat("Quantidade", f"Quantas unidades de {itens[escolha]['nome']} este produto usa:", initialvalue=1)
+        if quantidade is None:
+            return
+        produtos.adicionar_embalagem_ao_produto(self.produto_selecionado, embalagem_id, quantidade)
+        self._carregar_ficha()
+
+    def _remover_embalagem_ficha(self):
+        selecao = self.lista_embalagens_produto.curselection()
+        if not selecao:
+            return
+        texto = self.lista_embalagens_produto.get(selecao[0])
+        relacao_id = int(texto.split("]")[0].replace("[", ""))
+        produtos.remover_embalagem_do_produto(relacao_id)
         self._carregar_ficha()
 
 
@@ -644,6 +785,112 @@ class AbaIngredientes(ctk.CTkFrame):
         self._selecionar(None)
 
 
+# ---------------- ABA EMBALAGENS ----------------
+
+class AbaEmbalagens(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="transparent")
+        self.embalagem_selecionada = None
+        self._montar_layout()
+        self.atualizar()
+
+    def _montar_layout(self):
+        container_lista, self.tree = tabela(self, [
+            ("id", "ID", 50), ("nome", "Nome", 180), ("custo_total", "Custo Total", 100), ("rendimento", "Rendimento", 90), ("custo_unit", "Custo Unit.", 100),
+        ])
+        container_lista.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=4)
+        self.tree.bind("<<TreeviewSelect>>", self._selecionar)
+
+        painel = cartao(self, titulo="Embalagem", width=340)
+        painel.pack(side="right", fill="y", pady=4)
+        painel.pack_propagate(False)
+
+        rotulo(painel, "Nome").pack(anchor="w", padx=18)
+        self.entry_nome = campo(painel, "Ex: Caixa 6 doces")
+        self.entry_nome.pack(fill="x", padx=18, pady=(2, 10))
+
+        rotulo(painel, "Custo total (do rolo/pacote/lote)").pack(anchor="w", padx=18)
+        self.entry_custo_total = campo(painel, "Ex: 25.00")
+        self.entry_custo_total.pack(fill="x", padx=18, pady=(2, 10))
+
+        rotulo(painel, "Rendimento (quantas unidades saem)").pack(anchor="w", padx=18)
+        self.entry_rendimento = campo(painel, "Ex: 10")
+        self.entry_rendimento.pack(fill="x", padx=18, pady=(2, 10))
+
+        frame_botoes = ctk.CTkFrame(painel, fg_color="transparent")
+        frame_botoes.pack(fill="x", padx=18, pady=(4, 10))
+        botao(frame_botoes, "Novo", self._limpar, width=90).pack(side="left", padx=(0, 6))
+        botao(frame_botoes, "Salvar", self._salvar, width=90).pack(side="left", padx=6)
+        botao(frame_botoes, "Remover", self._remover, perigo=True, width=90).pack(side="left", padx=6)
+
+        ctk.CTkFrame(painel, height=1, fg_color=COR_BORDA).pack(fill="x", padx=18, pady=10)
+        self.label_custo_unitario = rotulo(painel, "Custo por unidade: R$ 0.00", font=fonte(13, "bold"), text_color=COR_LILAS_NEON)
+        self.label_custo_unitario.pack(anchor="w", padx=18, pady=(0, 16))
+
+    def atualizar(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        for e in embalagens.listar_embalagens():
+            custo_unit = embalagens.calcular_custo_unitario(e)
+            self.tree.insert("", "end", iid=e["id"], values=(e["id"], e["nome"], f"{e['custo_total']:.2f}", e["rendimento"], f"{custo_unit:.2f}"))
+
+    def _selecionar(self, event):
+        selecao = self.tree.selection()
+        if not selecao:
+            return
+        embalagem_id = int(selecao[0])
+        emb = embalagens.buscar_embalagem(embalagem_id)
+        if not emb:
+            return
+        self.embalagem_selecionada = embalagem_id
+        self.entry_nome.delete(0, tk.END)
+        self.entry_nome.insert(0, emb["nome"])
+        self.entry_custo_total.delete(0, tk.END)
+        self.entry_custo_total.insert(0, str(emb["custo_total"]))
+        self.entry_rendimento.delete(0, tk.END)
+        self.entry_rendimento.insert(0, str(emb["rendimento"]))
+        self.label_custo_unitario.configure(text=f"Custo por unidade: R$ {embalagens.calcular_custo_unitario(emb):.2f}")
+
+    def _limpar(self):
+        self.embalagem_selecionada = None
+        self.entry_nome.delete(0, tk.END)
+        self.entry_custo_total.delete(0, tk.END)
+        self.entry_rendimento.delete(0, tk.END)
+        self.label_custo_unitario.configure(text="Custo por unidade: R$ 0.00")
+        self.tree.selection_remove(self.tree.selection())
+
+    def _salvar(self):
+        nome = self.entry_nome.get().strip()
+        if not nome:
+            messagebox.showerror("Erro", "Informe o nome da embalagem.")
+            return
+        try:
+            custo_total = float(self.entry_custo_total.get().replace(",", ".") or 0)
+            rendimento = int(self.entry_rendimento.get() or 1)
+            if rendimento <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Erro", "Custo ou rendimento invalido (rendimento deve ser um numero inteiro maior que zero).")
+            return
+
+        if self.embalagem_selecionada:
+            embalagens.atualizar_embalagem(self.embalagem_selecionada, nome, custo_total, rendimento)
+        else:
+            embalagens.adicionar_embalagem(nome, custo_total, rendimento)
+
+        self.atualizar()
+        mostrar_toast(self, "Embalagem salva com sucesso.")
+
+    def _remover(self):
+        if not self.embalagem_selecionada:
+            messagebox.showerror("Erro", "Selecione uma embalagem.")
+            return
+        if messagebox.askyesno("Confirmar", "Deseja remover esta embalagem?"):
+            embalagens.remover_embalagem(self.embalagem_selecionada)
+            self._limpar()
+            self.atualizar()
+
+
 # ---------------- ABA PEDIDOS ----------------
 
 class AbaPedidos(ctk.CTkFrame):
@@ -660,15 +907,15 @@ class AbaPedidos(ctk.CTkFrame):
         area_esquerda = ctk.CTkFrame(self, fg_color="transparent")
         area_esquerda.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=4)
 
+        detalhe = cartao(area_esquerda, titulo="Detalhes do pedido", height=420)
+        detalhe.pack(side="bottom", fill="x", pady=(10, 0))
+        detalhe.pack_propagate(False)
+
         container_lista, self.tree = tabela(area_esquerda, [
             ("id", "ID", 45), ("cliente", "Cliente", 140), ("data", "Data", 135), ("entrega", "Entrega", 95), ("pagamento", "Pagamento", 110), ("status", "Status", 90),
         ])
         container_lista.pack(fill="both", expand=True)
         self.tree.bind("<<TreeviewSelect>>", self._selecionar_pedido)
-
-        detalhe = cartao(area_esquerda, titulo="Detalhes do pedido", height=280)
-        detalhe.pack(fill="x", pady=10)
-        detalhe.pack_propagate(False)
 
         self.label_info_pedido = rotulo(detalhe, "Selecione um pedido na lista acima", font=fonte(12, "bold"))
         self.label_info_pedido.pack(anchor="w", padx=18)
@@ -685,7 +932,7 @@ class AbaPedidos(ctk.CTkFrame):
         self.combo_forma_pagamento.pack(side="left", padx=(6, 14))
 
         rotulo(linha_edicao, "Status:").pack(side="left")
-        self.combo_status = combo(linha_edicao, ["nao_pago", "pago"], width=120)
+        self.combo_status = combo(linha_edicao, pedidos.STATUS_PEDIDO, width=130)
         self.combo_status.pack(side="left", padx=(6, 0))
 
         linha_botoes_detalhe = ctk.CTkFrame(detalhe, fg_color="transparent")
@@ -696,7 +943,7 @@ class AbaPedidos(ctk.CTkFrame):
         container_itens, self.tree_itens = tabela(detalhe, [
             ("produto", "Produto", 160), ("quantidade", "Qtd", 60), ("preco", "Preco unit.", 90), ("subtotal", "Subtotal", 90),
         ])
-        container_itens.configure(height=90)
+        container_itens.configure(height=120)
         container_itens.pack(fill="x", padx=18, pady=(0, 8))
         container_itens.pack_propagate(False)
 
@@ -983,7 +1230,7 @@ class AbaHistorico(ctk.CTkFrame):
         self.entry_fim.pack(side="left", padx=(0, 12))
 
         rotulo(frame_filtro, "Status:").pack(side="left", padx=(0, 6))
-        self.combo_status = combo(frame_filtro, ["", "nao_pago", "pago"], width=150)
+        self.combo_status = combo(frame_filtro, [""] + pedidos.STATUS_PEDIDO, width=150)
         self.combo_status.pack(side="left", padx=(0, 12))
 
         botao(frame_filtro, "Filtrar", self.atualizar, width=110).pack(side="left", padx=(0, 8))
@@ -1024,6 +1271,137 @@ class AbaHistorico(ctk.CTkFrame):
 
         resumo = pedidos.resumo_vendas(data_inicio, data_fim)
         self.label_resumo.configure(text=f"Pedidos pagos: {resumo['quantidade_pedidos']}   |   Total vendido: R$ {resumo['total_vendas']:.2f}")
+
+
+# ---------------- ABA GASTOS ----------------
+
+class AbaGastos(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="transparent")
+        self.gasto_selecionado = None
+        self._montar_layout()
+        self.atualizar()
+
+    def _montar_layout(self):
+        container_lista, self.tree = tabela(self, [
+            ("id", "ID", 45), ("nome", "Nome", 170), ("data", "Data", 100), ("tipo", "Pagamento", 110), ("categoria", "Categoria", 110), ("valor", "Valor", 90),
+        ])
+        container_lista.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=4)
+        self.tree.bind("<<TreeviewSelect>>", self._selecionar)
+
+        painel = cartao_rolavel(self, titulo="Gasto", width=360)
+        painel.pack(side="right", fill="y", pady=4)
+
+        rotulo(painel, "Nome").pack(anchor="w", padx=2)
+        self.entry_nome = campo(painel, "Ex: Compra de farinha")
+        self.entry_nome.pack(fill="x", padx=2, pady=(2, 8))
+
+        rotulo(painel, "Data").pack(anchor="w", padx=2)
+        self.entry_data = campo(painel, "DD/MM/AAAA")
+        self.entry_data.pack(fill="x", padx=2, pady=(2, 8))
+
+        rotulo(painel, "Forma de pagamento").pack(anchor="w", padx=2)
+        self.combo_tipo_pagamento = combo(painel, gastos.TIPOS_PAGAMENTO)
+        self.combo_tipo_pagamento.pack(fill="x", padx=2, pady=(2, 8))
+
+        rotulo(painel, "Categoria").pack(anchor="w", padx=2)
+        self.combo_categoria = combo_editavel(painel, gastos.CATEGORIAS)
+        self.combo_categoria.pack(fill="x", padx=2, pady=(2, 8))
+
+        rotulo(painel, "Valor").pack(anchor="w", padx=2)
+        self.entry_valor = campo(painel, "Ex: 50.00")
+        self.entry_valor.pack(fill="x", padx=2, pady=(2, 8))
+
+        frame_botoes = ctk.CTkFrame(painel, fg_color="transparent")
+        frame_botoes.pack(fill="x", padx=2, pady=(4, 10))
+        botao(frame_botoes, "Novo", self._limpar, width=90).pack(side="left", padx=(0, 6))
+        botao(frame_botoes, "Salvar", self._salvar, width=90).pack(side="left", padx=6)
+        botao(frame_botoes, "Remover", self._remover, perigo=True, width=90).pack(side="left", padx=6)
+
+        ctk.CTkFrame(painel, height=1, fg_color=COR_BORDA).pack(fill="x", padx=2, pady=8)
+        self.label_resumo = rotulo(painel, "Total: R$ 0.00", font=fonte(14, "bold"), text_color=COR_LILAS_NEON, justify="left")
+        self.label_resumo.pack(anchor="w", padx=2, pady=(4, 16))
+
+    def atualizar(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        for g in gastos.listar_gastos():
+            self.tree.insert("", "end", iid=g["id"], values=(
+                g["id"], g["nome"], datas.iso_para_br(g["data"]), g["tipo_pagamento"] or "-", g["categoria"] or "-", f"{g['valor']:.2f}",
+            ))
+
+        total = gastos.total_gastos()
+        por_categoria = gastos.resumo_por_categoria()
+        linhas_categoria = "\n".join(f"  {cat}: R$ {valor:.2f}" for cat, valor in por_categoria[:5])
+        texto = f"Total geral: R$ {total:.2f}"
+        if linhas_categoria:
+            texto += f"\n\nPor categoria:\n{linhas_categoria}"
+        self.label_resumo.configure(text=texto)
+
+    def _selecionar(self, event):
+        selecao = self.tree.selection()
+        if not selecao:
+            return
+        gasto_id = int(selecao[0])
+        gasto = gastos.buscar_gasto(gasto_id)
+        if not gasto:
+            return
+        self.gasto_selecionado = gasto_id
+        self.entry_nome.delete(0, tk.END)
+        self.entry_nome.insert(0, gasto["nome"])
+        self.entry_data.delete(0, tk.END)
+        self.entry_data.insert(0, datas.iso_para_br(gasto["data"]))
+        self.combo_tipo_pagamento.set(gasto["tipo_pagamento"] or "")
+        self.combo_categoria.set(gasto["categoria"] or "")
+        self.entry_valor.delete(0, tk.END)
+        self.entry_valor.insert(0, str(gasto["valor"]))
+
+    def _limpar(self):
+        self.gasto_selecionado = None
+        self.entry_nome.delete(0, tk.END)
+        self.entry_data.delete(0, tk.END)
+        self.combo_tipo_pagamento.set("")
+        self.combo_categoria.set("")
+        self.entry_valor.delete(0, tk.END)
+        self.tree.selection_remove(self.tree.selection())
+
+    def _salvar(self):
+        nome = self.entry_nome.get().strip()
+        if not nome:
+            messagebox.showerror("Erro", "Informe o nome do gasto.")
+            return
+        try:
+            data_iso = datas.br_para_iso(self.entry_data.get())
+        except ValueError:
+            messagebox.showerror("Erro", "Data invalida. Use o formato DD/MM/AAAA.")
+            return
+        if not data_iso:
+            messagebox.showerror("Erro", "Informe a data do gasto.")
+            return
+        try:
+            valor = float(self.entry_valor.get().replace(",", ".") or 0)
+        except ValueError:
+            messagebox.showerror("Erro", "Valor invalido.")
+            return
+        tipo_pagamento = self.combo_tipo_pagamento.get().strip() or None
+        categoria = self.combo_categoria.get().strip() or None
+
+        if self.gasto_selecionado:
+            gastos.atualizar_gasto(self.gasto_selecionado, nome, data_iso, tipo_pagamento, categoria, valor)
+        else:
+            gastos.adicionar_gasto(nome, data_iso, tipo_pagamento, categoria, valor)
+
+        self.atualizar()
+        mostrar_toast(self, "Gasto salvo com sucesso.")
+
+    def _remover(self):
+        if not self.gasto_selecionado:
+            messagebox.showerror("Erro", "Selecione um gasto.")
+            return
+        if messagebox.askyesno("Confirmar", "Deseja remover este gasto?"):
+            gastos.remover_gasto(self.gasto_selecionado)
+            self._limpar()
+            self.atualizar()
 
 
 if __name__ == "__main__":

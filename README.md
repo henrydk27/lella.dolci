@@ -11,7 +11,9 @@ Site e sistema de vendas da confeitaria Lella Dolci.
 
 ## Controle de vendas (Python)
 
-Programa para gerenciar o dia a dia da confeitaria: cadastro de produtos e precos, lista de ingredientes com estoque, registro de pedidos e historico de vendas.
+Programa para gerenciar o dia a dia da confeitaria: cadastro de produtos e precos, receitas com custo automatico (ingredientes + embalagens + taxa de utilidades), controle de estoque, pedidos com fluxo completo (pendente > pronto > entregue > pago), historico de vendas e controle de gastos gerais.
+
+Reescrito com base na planilha de controle usada anteriormente (Excel), trazendo a logica de precificacao (custo dos ingredientes + 10% de utilidades/gas + custo de embalagem) e o controle de despesas para dentro do programa, com o pedido e a venda unificados num unico registro (a planilha antiga exigia lancar cada venda duas vezes, em abas separadas).
 
 Requisitos: Python 3 e a biblioteca `customtkinter` (a interface grafica usa ela para o visual moderno e arredondado).
 
@@ -25,7 +27,7 @@ pip install customtkinter
 python controle-vendas/gui.py
 ```
 
-Abre uma janela com um design organico: fundo creme/areia, detalhes em terracota e verde-salvia, titulos na fonte Caprasimo sobre texto em Figtree, cantos arredondados que viram pilulas em botoes e campos. Abas para Inicio (dashboard), Produtos, Ingredientes, Pedidos e Historico. As fontes ficam em `controle-vendas/fontes/` e sao carregadas automaticamente pelo programa (nao precisam estar instaladas no Windows).
+Abre uma janela com um design organico: fundo creme/areia, detalhes em terracota e verde-salvia, titulos na fonte Caprasimo sobre texto em Figtree, cantos arredondados que viram pilulas em botoes e campos. Abas para Inicio (dashboard), Produtos, Ingredientes, Embalagens, Pedidos, Historico e Gastos. As fontes ficam em `controle-vendas/fontes/` e sao carregadas automaticamente pelo programa (nao precisam estar instaladas no Windows).
 
 ### Executavel (.exe)
 
@@ -51,11 +53,13 @@ Menu interativo no terminal com as mesmas funcionalidades.
 
 ### Funcionalidades
 
-- **Inicio (dashboard)**: total vendido no mes atual, quantidade de pedidos em aberto (nao pagos) e o produto mais vendido.
-- **Produtos**: cadastro, edicao, remocao, ficha tecnica (ingredientes usados, custo estimado) e margem de lucro (R$ e %) calculada a partir do preco de venda menos o custo.
+- **Inicio (dashboard)**: total vendido no mes atual, quantidade de pedidos em aberto (nao pagos) e o produto mais vendido, alem de um resumo de vendas por categoria no ano atual.
+- **Produtos**: cadastro, edicao, remocao, categoria, receita (ingredientes usados), embalagens usadas, taxa de utilidades/gas (overhead, padrao 10%) e custo total calculado automaticamente (ingredientes + overhead + embalagens), com margem de lucro (R$ e %) comparando ao preco de venda.
 - **Ingredientes**: cadastro, edicao, remocao e controle de estoque.
-- **Pedidos**: criacao com multiplos itens, data de entrega e forma de pagamento (pix, dinheiro, cartao debito, cartao credito, outro); edicao de quantidade ou remocao de itens de um pedido ja criado; atualizacao de status (pago/nao_pago), data de entrega e forma de pagamento; remocao de pedido.
+- **Embalagens**: cadastro de caixas/sacos/etc. com custo total e rendimento (quantas unidades saem de um lote), calculando o custo por unidade automaticamente — usado no custo dos produtos.
+- **Pedidos**: criacao com multiplos itens, data de entrega e forma de pagamento (pix, dinheiro, cartao debito, cartao credito, outro); edicao de quantidade ou remocao de itens de um pedido ja criado; fluxo de status **pendente > pronto > entregue > pago**; remocao de pedido.
 - **Historico**: consulta de vendas por periodo e status, com resumo de pedidos pagos e total vendido.
+- **Gastos**: registro de despesas gerais (mercado, embalagem, ingredientes, etc.) com data, forma de pagamento e categoria, e resumo total por categoria e por forma de pagamento.
 
 Todas as datas sao exibidas e digitadas no formato **DD/MM/AAAA** (ex: 25/08/2026). Internamente o banco guarda em formato ISO para os filtros de periodo funcionarem corretamente.
 

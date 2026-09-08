@@ -1,6 +1,8 @@
 import db
 import produtos
 import ingredientes
+import embalagens
+import gastos
 import pedidos
 import datas
 
@@ -123,6 +125,71 @@ def ajustar_estoque_tela():
     print("Estoque ajustado.")
 
 
+# ---------------- EMBALAGENS ----------------
+
+def menu_embalagens():
+    while True:
+        print("\n=== EMBALAGENS ===")
+        print("1. Listar embalagens")
+        print("2. Adicionar embalagem")
+        print("3. Editar embalagem")
+        print("4. Remover embalagem")
+        print("0. Voltar")
+        opcao = input("Escolha: ").strip()
+
+        if opcao == "1":
+            listar_embalagens_tela()
+        elif opcao == "2":
+            adicionar_embalagem_tela()
+        elif opcao == "3":
+            editar_embalagem_tela()
+        elif opcao == "4":
+            remover_embalagem_tela()
+        elif opcao == "0":
+            break
+        else:
+            print("Opcao invalida.")
+
+
+def listar_embalagens_tela():
+    itens = embalagens.listar_embalagens()
+    print("\nID  Nome                 Custo Total  Rendimento  Custo Unit.")
+    for e in itens:
+        custo_unit = embalagens.calcular_custo_unitario(e)
+        print(f"{e['id']:<3} {e['nome']:<20} R$ {e['custo_total']:<9.2f} {e['rendimento']:<11} R$ {custo_unit:.2f}")
+    if not itens:
+        print("Nenhuma embalagem cadastrada.")
+
+
+def adicionar_embalagem_tela():
+    nome = input("Nome da embalagem: ").strip()
+    custo_total = ler_float("Custo total (do rolo/pacote/lote): ", 0)
+    rendimento = ler_int("Rendimento (quantas unidades saem): ", 1)
+    embalagens.adicionar_embalagem(nome, custo_total, rendimento)
+    print("Embalagem adicionada com sucesso.")
+
+
+def editar_embalagem_tela():
+    listar_embalagens_tela()
+    id_emb = ler_int("\nID da embalagem a editar: ")
+    emb = embalagens.buscar_embalagem(id_emb)
+    if not emb:
+        print("Embalagem nao encontrada.")
+        return
+    nome = input(f"Nome [{emb['nome']}]: ").strip() or emb["nome"]
+    custo_total = ler_float(f"Custo total [{emb['custo_total']}]: ", emb["custo_total"])
+    rendimento = ler_int(f"Rendimento [{emb['rendimento']}]: ", emb["rendimento"])
+    embalagens.atualizar_embalagem(id_emb, nome, custo_total, rendimento)
+    print("Embalagem atualizada.")
+
+
+def remover_embalagem_tela():
+    listar_embalagens_tela()
+    id_emb = ler_int("\nID da embalagem a remover: ")
+    embalagens.remover_embalagem(id_emb)
+    print("Embalagem removida.")
+
+
 # ---------------- PRODUTOS ----------------
 
 def menu_produtos():
@@ -132,7 +199,8 @@ def menu_produtos():
         print("2. Adicionar produto")
         print("3. Editar produto")
         print("4. Remover produto")
-        print("5. Gerenciar ingredientes do produto (ficha tecnica)")
+        print("5. Gerenciar ingredientes do produto (receita)")
+        print("6. Gerenciar embalagens do produto")
         print("0. Voltar")
         opcao = input("Escolha: ").strip()
 
@@ -146,6 +214,8 @@ def menu_produtos():
             remover_produto_tela()
         elif opcao == "5":
             gerenciar_ingredientes_produto_tela()
+        elif opcao == "6":
+            gerenciar_embalagens_produto_tela()
         elif opcao == "0":
             break
         else:
@@ -154,18 +224,21 @@ def menu_produtos():
 
 def listar_produtos_tela():
     itens = produtos.listar_produtos()
-    print("\nID  Nome                      Preco      Descricao")
+    print("\nID  Nome                      Categoria        Preco      Descricao")
     for p in itens:
-        print(f"{p['id']:<3} {p['nome']:<25} R$ {p['preco']:<8.2f} {p['descricao'] or ''}")
+        print(f"{p['id']:<3} {p['nome']:<25} {p['categoria'] or '-':<16} R$ {p['preco']:<8.2f} {p['descricao'] or ''}")
     if not itens:
         print("Nenhum produto cadastrado.")
 
 
 def adicionar_produto_tela():
     nome = input("Nome do produto: ").strip()
+    print("Categorias sugeridas:", ", ".join(produtos.listar_categorias()[:10]), "...")
+    categoria = input("Categoria (opcional): ").strip() or None
     preco = ler_float("Preco de venda: ")
+    taxa_overhead = ler_float("Taxa de utilidades/gas em % (padrao 10): ", 10)
     descricao = input("Descricao (opcional): ").strip()
-    produtos.adicionar_produto(nome, preco, descricao)
+    produtos.adicionar_produto(nome, preco, descricao, categoria, taxa_overhead)
     print("Produto adicionado com sucesso.")
 
 
@@ -177,9 +250,11 @@ def editar_produto_tela():
         print("Produto nao encontrado.")
         return
     nome = input(f"Nome [{prod['nome']}]: ").strip() or prod["nome"]
+    categoria = input(f"Categoria [{prod['categoria'] or ''}]: ").strip() or prod["categoria"]
     preco = ler_float(f"Preco [{prod['preco']}]: ", prod["preco"])
+    taxa_overhead = ler_float(f"Taxa de utilidades % [{prod['taxa_overhead']}]: ", prod["taxa_overhead"])
     descricao = input(f"Descricao [{prod['descricao'] or ''}]: ").strip() or prod["descricao"]
-    produtos.atualizar_produto(id_prod, nome, preco, descricao)
+    produtos.atualizar_produto(id_prod, nome, preco, descricao, categoria, taxa_overhead)
     print("Produto atualizado.")
 
 
@@ -199,12 +274,13 @@ def gerenciar_ingredientes_produto_tela():
         return
 
     while True:
-        print(f"\n=== Ficha tecnica: {prod['nome']} ===")
+        print(f"\n=== Receita: {prod['nome']} ===")
         itens = produtos.listar_ingredientes_do_produto(id_prod)
         for i in itens:
             print(f"  [{i['id']}] {i['nome']} - {i['quantidade']} {i['unidade']}")
-        custo = produtos.calcular_custo_produto(id_prod)
-        print(f"Custo estimado: R$ {custo:.2f} | Preco de venda: R$ {prod['preco']:.2f}")
+        detalhe = produtos.detalhar_custo_produto(id_prod)
+        print(f"Ingredientes: R$ {detalhe['ingredientes']:.2f} | Utilidades: R$ {detalhe['overhead']:.2f} | "
+              f"Embalagens: R$ {detalhe['embalagens']:.2f} | Custo total: R$ {detalhe['total']:.2f} | Preco de venda: R$ {prod['preco']:.2f}")
 
         print("\n1. Adicionar ingrediente")
         print("2. Remover ingrediente")
@@ -217,8 +293,43 @@ def gerenciar_ingredientes_produto_tela():
             quantidade = ler_float("Quantidade utilizada na receita: ")
             produtos.adicionar_ingrediente_ao_produto(id_prod, id_ing, quantidade)
         elif opcao == "2":
-            id_rel = ler_int("ID do item da ficha a remover: ")
+            id_rel = ler_int("ID do item da receita a remover: ")
             produtos.remover_ingrediente_do_produto(id_rel)
+        elif opcao == "0":
+            break
+        else:
+            print("Opcao invalida.")
+
+
+def gerenciar_embalagens_produto_tela():
+    listar_produtos_tela()
+    id_prod = ler_int("\nID do produto: ")
+    prod = produtos.buscar_produto(id_prod)
+    if not prod:
+        print("Produto nao encontrado.")
+        return
+
+    while True:
+        print(f"\n=== Embalagens usadas: {prod['nome']} ===")
+        itens = produtos.listar_embalagens_do_produto(id_prod)
+        for e in itens:
+            print(f"  [{e['id']}] {e['nome']} - {e['quantidade']}x")
+        custo_embalagens = produtos.calcular_custo_embalagens(id_prod)
+        print(f"Custo de embalagem: R$ {custo_embalagens:.2f}")
+
+        print("\n1. Adicionar embalagem")
+        print("2. Remover embalagem")
+        print("0. Voltar")
+        opcao = input("Escolha: ").strip()
+
+        if opcao == "1":
+            listar_embalagens_tela()
+            id_emb = ler_int("ID da embalagem: ")
+            quantidade = ler_float("Quantas unidades este produto usa: ", 1)
+            produtos.adicionar_embalagem_ao_produto(id_prod, id_emb, quantidade)
+        elif opcao == "2":
+            id_rel = ler_int("ID do item a remover: ")
+            produtos.remover_embalagem_do_produto(id_rel)
         elif opcao == "0":
             break
         else:
@@ -353,8 +464,11 @@ def editar_item_pedido_tela():
 def atualizar_status_tela():
     listar_pedidos_tela()
     id_pedido = ler_int("\nID do pedido: ")
-    print("Status disponiveis: nao_pago, pago")
+    print(f"Status disponiveis: {', '.join(pedidos.STATUS_PEDIDO)}")
     status = input("Novo status: ").strip()
+    if status not in pedidos.STATUS_PEDIDO:
+        print("Status invalido.")
+        return
     pedidos.atualizar_status_pedido(id_pedido, status)
     print("Status atualizado.")
 
@@ -396,6 +510,7 @@ def menu_historico():
         print("2. Filtrar por periodo")
         print("3. Filtrar por status")
         print("4. Resumo de vendas (pagas) por periodo")
+        print("5. Vendas por categoria (ano atual)")
         print("0. Voltar")
         opcao = input("Escolha: ").strip()
 
@@ -406,7 +521,8 @@ def menu_historico():
             data_fim = ler_data_iso("Data fim (DD/MM/AAAA): ", permitir_vazio=False)
             exibir_historico(pedidos.historico_vendas(data_inicio, data_fim))
         elif opcao == "3":
-            status = input("Status (nao_pago/pago): ").strip()
+            print(f"Status disponiveis: {', '.join(pedidos.STATUS_PEDIDO)}")
+            status = input("Status: ").strip()
             exibir_historico(pedidos.historico_vendas(status=status))
         elif opcao == "4":
             data_inicio = ler_data_iso("Data inicio (DD/MM/AAAA, opcional): ")
@@ -414,6 +530,11 @@ def menu_historico():
             resumo = pedidos.resumo_vendas(data_inicio, data_fim)
             print(f"\nPedidos pagos: {resumo['quantidade_pedidos']}")
             print(f"Total vendido: R$ {resumo['total_vendas']:.2f}")
+        elif opcao == "5":
+            ano = input("Ano (AAAA, opcional): ").strip() or None
+            print("\nCategoria                 Quantidade vendida")
+            for linha in pedidos.vendas_por_categoria(ano):
+                print(f"{linha['categoria']:<26} {linha['total']}")
         elif opcao == "0":
             break
         else:
@@ -427,6 +548,90 @@ def exibir_historico(itens):
         print(f"{p['id']:<3} {p['cliente']:<20} {datas.iso_para_br(p['data_pedido']):<20} {p['status']:<12} R$ {total:.2f}")
     if not itens:
         print("Nenhum registro encontrado.")
+
+
+# ---------------- GASTOS ----------------
+
+def menu_gastos():
+    while True:
+        print("\n=== GASTOS ===")
+        print("1. Listar gastos")
+        print("2. Adicionar gasto")
+        print("3. Editar gasto")
+        print("4. Remover gasto")
+        print("5. Resumo por categoria e forma de pagamento")
+        print("0. Voltar")
+        opcao = input("Escolha: ").strip()
+
+        if opcao == "1":
+            listar_gastos_tela()
+        elif opcao == "2":
+            adicionar_gasto_tela()
+        elif opcao == "3":
+            editar_gasto_tela()
+        elif opcao == "4":
+            remover_gasto_tela()
+        elif opcao == "5":
+            resumo_gastos_tela()
+        elif opcao == "0":
+            break
+        else:
+            print("Opcao invalida.")
+
+
+def listar_gastos_tela():
+    itens = gastos.listar_gastos()
+    print("\nID  Nome                      Data        Pagamento        Categoria        Valor")
+    for g in itens:
+        print(f"{g['id']:<3} {g['nome']:<25} {datas.iso_para_br(g['data']):<11} {g['tipo_pagamento'] or '-':<16} {g['categoria'] or '-':<16} R$ {g['valor']:.2f}")
+    if not itens:
+        print("Nenhum gasto cadastrado.")
+
+
+def adicionar_gasto_tela():
+    nome = input("Nome do gasto: ").strip()
+    data_iso = ler_data_iso("Data (DD/MM/AAAA): ", permitir_vazio=False)
+    print(f"Formas de pagamento sugeridas: {', '.join(t for t in gastos.TIPOS_PAGAMENTO if t)}")
+    tipo_pagamento = input("Forma de pagamento (opcional): ").strip() or None
+    print(f"Categorias sugeridas: {', '.join(c for c in gastos.CATEGORIAS if c)}")
+    categoria = input("Categoria (opcional): ").strip() or None
+    valor = ler_float("Valor: ", 0)
+    gastos.adicionar_gasto(nome, data_iso, tipo_pagamento, categoria, valor)
+    print("Gasto adicionado com sucesso.")
+
+
+def editar_gasto_tela():
+    listar_gastos_tela()
+    id_gasto = ler_int("\nID do gasto a editar: ")
+    gasto = gastos.buscar_gasto(id_gasto)
+    if not gasto:
+        print("Gasto nao encontrado.")
+        return
+    nome = input(f"Nome [{gasto['nome']}]: ").strip() or gasto["nome"]
+    entrada_data = input(f"Data [{datas.iso_para_br(gasto['data'])}] (DD/MM/AAAA): ").strip()
+    data_iso = datas.br_para_iso(entrada_data) if entrada_data else gasto["data"]
+    tipo_pagamento = input(f"Forma de pagamento [{gasto['tipo_pagamento'] or ''}]: ").strip() or gasto["tipo_pagamento"]
+    categoria = input(f"Categoria [{gasto['categoria'] or ''}]: ").strip() or gasto["categoria"]
+    valor = ler_float(f"Valor [{gasto['valor']}]: ", gasto["valor"])
+    gastos.atualizar_gasto(id_gasto, nome, data_iso, tipo_pagamento, categoria, valor)
+    print("Gasto atualizado.")
+
+
+def remover_gasto_tela():
+    listar_gastos_tela()
+    id_gasto = ler_int("\nID do gasto a remover: ")
+    gastos.remover_gasto(id_gasto)
+    print("Gasto removido.")
+
+
+def resumo_gastos_tela():
+    print(f"\nTotal geral: R$ {gastos.total_gastos():.2f}")
+    print("\nPor categoria:")
+    for categoria, valor in gastos.resumo_por_categoria():
+        print(f"  {categoria}: R$ {valor:.2f}")
+    print("\nPor forma de pagamento:")
+    for tipo, valor in gastos.resumo_por_tipo_pagamento():
+        print(f"  {tipo}: R$ {valor:.2f}")
 
 
 # ---------------- MENU PRINCIPAL ----------------
@@ -454,8 +659,10 @@ def menu_principal():
         print("----------------------------------------")
         print("1. Produtos")
         print("2. Ingredientes")
-        print("3. Pedidos")
-        print("4. Historico de vendas")
+        print("3. Embalagens")
+        print("4. Pedidos")
+        print("5. Historico de vendas")
+        print("6. Gastos")
         print("0. Sair")
         opcao = input("Escolha: ").strip()
 
@@ -464,9 +671,13 @@ def menu_principal():
         elif opcao == "2":
             menu_ingredientes()
         elif opcao == "3":
-            menu_pedidos()
+            menu_embalagens()
         elif opcao == "4":
+            menu_pedidos()
+        elif opcao == "5":
             menu_historico()
+        elif opcao == "6":
+            menu_gastos()
         elif opcao == "0":
             print("Ate logo!")
             break

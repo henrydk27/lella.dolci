@@ -38,11 +38,22 @@ def init_db():
     """)
 
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS embalagens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL UNIQUE,
+            custo_total REAL NOT NULL DEFAULT 0,
+            rendimento INTEGER NOT NULL DEFAULT 1
+        )
+    """)
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS produtos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL UNIQUE,
             preco REAL NOT NULL,
-            descricao TEXT
+            descricao TEXT,
+            categoria TEXT,
+            taxa_overhead REAL NOT NULL DEFAULT 10
         )
     """)
 
@@ -58,13 +69,24 @@ def init_db():
     """)
 
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS produto_embalagens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produto_id INTEGER NOT NULL,
+            embalagem_id INTEGER NOT NULL,
+            quantidade REAL NOT NULL DEFAULT 1,
+            FOREIGN KEY (produto_id) REFERENCES produtos (id) ON DELETE CASCADE,
+            FOREIGN KEY (embalagem_id) REFERENCES embalagens (id) ON DELETE CASCADE
+        )
+    """)
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS pedidos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cliente TEXT NOT NULL,
             data_pedido TEXT NOT NULL,
             data_entrega TEXT,
             forma_pagamento TEXT,
-            status TEXT NOT NULL DEFAULT 'nao_pago',
+            status TEXT NOT NULL DEFAULT 'pendente',
             observacoes TEXT
         )
     """)
@@ -81,7 +103,20 @@ def init_db():
         )
     """)
 
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS gastos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            data TEXT NOT NULL,
+            tipo_pagamento TEXT,
+            categoria TEXT,
+            valor REAL NOT NULL DEFAULT 0
+        )
+    """)
+
     _migrar_colunas_pedidos(cur)
+    _migrar_colunas_produtos(cur)
+    _migrar_status_pedidos(cur)
 
     conn.commit()
     conn.close()
@@ -94,3 +129,18 @@ def _migrar_colunas_pedidos(cur):
         cur.execute("ALTER TABLE pedidos ADD COLUMN data_entrega TEXT")
     if "forma_pagamento" not in colunas_existentes:
         cur.execute("ALTER TABLE pedidos ADD COLUMN forma_pagamento TEXT")
+
+
+def _migrar_colunas_produtos(cur):
+    colunas_existentes = {linha[1] for linha in cur.execute("PRAGMA table_info(produtos)").fetchall()}
+    if "categoria" not in colunas_existentes:
+        cur.execute("ALTER TABLE produtos ADD COLUMN categoria TEXT")
+    if "taxa_overhead" not in colunas_existentes:
+        cur.execute("ALTER TABLE produtos ADD COLUMN taxa_overhead REAL NOT NULL DEFAULT 10")
+
+
+def _migrar_status_pedidos(cur):
+    """O status de pedido evoluiu de nao_pago/pago para um fluxo completo
+    (pendente -> pronto -> entregue -> pago). Pedidos antigos com status
+    'pago' continuam pagos; qualquer outro status antigo vira 'pendente'."""
+    cur.execute("UPDATE pedidos SET status = 'pendente' WHERE status NOT IN ('pendente', 'pronto', 'entregue', 'pago')")

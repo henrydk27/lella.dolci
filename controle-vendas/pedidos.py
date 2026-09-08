@@ -1,6 +1,10 @@
 from datetime import datetime
 from db import get_connection
 
+# Fluxo de vida do pedido: entra pendente, fica pronto, e' entregue e por fim pago.
+# Substitui o antigo par Encomendas/Historico de Vendas da planilha por um unico registro.
+STATUS_PEDIDO = ["pendente", "pronto", "entregue", "pago"]
+
 
 def criar_pedido(cliente, itens, observacoes="", data_entrega=None, forma_pagamento=None):
     """itens: lista de dicts {produto_id, quantidade, preco_unitario}"""
@@ -10,7 +14,7 @@ def criar_pedido(cliente, itens, observacoes="", data_entrega=None, forma_pagame
     cur.execute(
         """INSERT INTO pedidos (cliente, data_pedido, data_entrega, forma_pagamento, status, observacoes)
            VALUES (?, ?, ?, ?, ?, ?)""",
-        (cliente, data_pedido, data_entrega, forma_pagamento, "nao_pago", observacoes),
+        (cliente, data_pedido, data_entrega, forma_pagamento, "pendente", observacoes),
     )
     pedido_id = cur.lastrowid
 
@@ -122,8 +126,9 @@ def resumo_mes_atual():
 
 
 def quantidade_pedidos_em_aberto():
+    """Pedidos que ainda nao foram pagos, em qualquer etapa (pendente/pronto/entregue)."""
     conn = get_connection()
-    total = conn.execute("SELECT COUNT(*) FROM pedidos WHERE status = 'nao_pago'").fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM pedidos WHERE status != 'pago'").fetchone()[0]
     conn.close()
     return total
 
@@ -134,9 +139,32 @@ def produto_mais_vendido():
         SELECT p.nome, SUM(pi.quantidade) AS total_vendido
         FROM pedido_itens pi
         JOIN produtos p ON p.id = pi.produto_id
+        JOIN pedidos pe ON pe.id = pi.pedido_id
+        WHERE pe.status = 'pago'
         GROUP BY pi.produto_id
         ORDER BY total_vendido DESC
         LIMIT 1
     """).fetchone()
     conn.close()
     return row
+
+
+def vendas_por_categoria(ano=None):
+    """Quantidade vendida (pedidos pagos) agrupada por categoria de produto,
+    equivalente a aba 'Relatorio' da planilha original. ano: string 'AAAA'."""
+    conn = get_connection()
+    query = """
+        SELECT COALESCE(p.categoria, 'sem categoria') AS categoria, SUM(pi.quantidade) AS total
+        FROM pedido_itens pi
+        JOIN produtos p ON p.id = pi.produto_id
+        JOIN pedidos pe ON pe.id = pi.pedido_id
+        WHERE pe.status = 'pago'
+    """
+    params = []
+    if ano:
+        query += " AND substr(pe.data_pedido, 1, 4) = ?"
+        params.append(ano)
+    query += " GROUP BY categoria ORDER BY total DESC"
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return rows
