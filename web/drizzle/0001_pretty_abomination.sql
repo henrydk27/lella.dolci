@@ -1,0 +1,1 @@
+ALTER TABLE `pedidos` ADD `tipo` text DEFAULT 'encomenda' NOT NULL;

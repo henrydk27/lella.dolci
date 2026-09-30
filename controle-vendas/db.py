@@ -80,14 +80,29 @@ def init_db():
     """)
 
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS clientes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            telefone TEXT,
+            email TEXT,
+            endereco TEXT,
+            aniversario TEXT,
+            como_conheceu TEXT,
+            notas TEXT
+        )
+    """)
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS pedidos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cliente TEXT NOT NULL,
+            cliente_id INTEGER,
             data_pedido TEXT NOT NULL,
             data_entrega TEXT,
             forma_pagamento TEXT,
             status TEXT NOT NULL DEFAULT 'pendente',
-            observacoes TEXT
+            observacoes TEXT,
+            FOREIGN KEY (cliente_id) REFERENCES clientes (id) ON DELETE SET NULL
         )
     """)
 
@@ -117,6 +132,7 @@ def init_db():
     _migrar_colunas_pedidos(cur)
     _migrar_colunas_produtos(cur)
     _migrar_status_pedidos(cur)
+    _migrar_clientes_dos_pedidos(cur)
 
     conn.commit()
     conn.close()
@@ -129,6 +145,8 @@ def _migrar_colunas_pedidos(cur):
         cur.execute("ALTER TABLE pedidos ADD COLUMN data_entrega TEXT")
     if "forma_pagamento" not in colunas_existentes:
         cur.execute("ALTER TABLE pedidos ADD COLUMN forma_pagamento TEXT")
+    if "cliente_id" not in colunas_existentes:
+        cur.execute("ALTER TABLE pedidos ADD COLUMN cliente_id INTEGER REFERENCES clientes(id)")
 
 
 def _migrar_colunas_produtos(cur):
@@ -144,3 +162,28 @@ def _migrar_status_pedidos(cur):
     (pendente -> pronto -> entregue -> pago). Pedidos antigos com status
     'pago' continuam pagos; qualquer outro status antigo vira 'pendente'."""
     cur.execute("UPDATE pedidos SET status = 'pendente' WHERE status NOT IN ('pendente', 'pronto', 'entregue', 'pago')")
+
+
+def _migrar_clientes_dos_pedidos(cur):
+    """O cliente do pedido era so um texto solto; agora vira uma entidade
+    propria (aba Clientes). Para pedidos antigos sem cliente_id, cria (ou
+    reaproveita) um cliente com o mesmo nome e faz o vinculo, sem duplicar
+    clientes com o mesmo nome (comparando sem espacos extras e sem case)."""
+    pendentes = cur.execute(
+        "SELECT id, cliente FROM pedidos WHERE cliente_id IS NULL AND cliente IS NOT NULL AND TRIM(cliente) <> ''"
+    ).fetchall()
+    if not pendentes:
+        return
+
+    cache_nome_para_id = {}
+    for linha in cur.execute("SELECT id, nome FROM clientes").fetchall():
+        cache_nome_para_id[linha[1].strip().lower()] = linha[0]
+
+    for pedido_id, nome_cliente in pendentes:
+        chave = nome_cliente.strip().lower()
+        cliente_id = cache_nome_para_id.get(chave)
+        if cliente_id is None:
+            cur.execute("INSERT INTO clientes (nome) VALUES (?)", (nome_cliente.strip(),))
+            cliente_id = cur.lastrowid
+            cache_nome_para_id[chave] = cliente_id
+        cur.execute("UPDATE pedidos SET cliente_id = ? WHERE id = ?", (cliente_id, pedido_id))

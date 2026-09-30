@@ -5,16 +5,24 @@ from db import get_connection
 # Substitui o antigo par Encomendas/Historico de Vendas da planilha por um unico registro.
 STATUS_PEDIDO = ["pendente", "pronto", "entregue", "pago"]
 
+_SELECT_PEDIDOS = """
+    SELECT pedidos.*, COALESCE(c.nome, pedidos.cliente) AS cliente_nome
+    FROM pedidos
+    LEFT JOIN clientes c ON c.id = pedidos.cliente_id
+"""
 
-def criar_pedido(cliente, itens, observacoes="", data_entrega=None, forma_pagamento=None):
+
+def criar_pedido(cliente_id, itens, observacoes="", data_entrega=None, forma_pagamento=None):
     """itens: lista de dicts {produto_id, quantidade, preco_unitario}"""
     conn = get_connection()
     cur = conn.cursor()
+    cliente_row = conn.execute("SELECT nome FROM clientes WHERE id = ?", (cliente_id,)).fetchone()
+    nome_cliente = cliente_row["nome"] if cliente_row else ""
     data_pedido = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cur.execute(
-        """INSERT INTO pedidos (cliente, data_pedido, data_entrega, forma_pagamento, status, observacoes)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (cliente, data_pedido, data_entrega, forma_pagamento, "pendente", observacoes),
+        """INSERT INTO pedidos (cliente, cliente_id, data_pedido, data_entrega, forma_pagamento, status, observacoes)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (nome_cliente, cliente_id, data_pedido, data_entrega, forma_pagamento, "pendente", observacoes),
     )
     pedido_id = cur.lastrowid
 
@@ -31,14 +39,14 @@ def criar_pedido(cliente, itens, observacoes="", data_entrega=None, forma_pagame
 
 def listar_pedidos():
     conn = get_connection()
-    rows = conn.execute("SELECT * FROM pedidos ORDER BY data_pedido DESC").fetchall()
+    rows = conn.execute(_SELECT_PEDIDOS + " ORDER BY data_pedido DESC").fetchall()
     conn.close()
     return rows
 
 
 def buscar_pedido(pedido_id):
     conn = get_connection()
-    pedido = conn.execute("SELECT * FROM pedidos WHERE id = ?", (pedido_id,)).fetchone()
+    pedido = conn.execute(_SELECT_PEDIDOS + " WHERE pedidos.id = ?", (pedido_id,)).fetchone()
     itens = conn.execute("""
         SELECT pi.*, p.nome AS produto_nome
         FROM pedido_itens pi
@@ -52,6 +60,15 @@ def buscar_pedido(pedido_id):
 def atualizar_status_pedido(pedido_id, status):
     conn = get_connection()
     conn.execute("UPDATE pedidos SET status = ? WHERE id = ?", (status, pedido_id))
+    conn.commit()
+    conn.close()
+
+
+def atualizar_cliente_pedido(pedido_id, cliente_id):
+    conn = get_connection()
+    cliente_row = conn.execute("SELECT nome FROM clientes WHERE id = ?", (cliente_id,)).fetchone()
+    nome_cliente = cliente_row["nome"] if cliente_row else ""
+    conn.execute("UPDATE pedidos SET cliente_id = ?, cliente = ? WHERE id = ?", (cliente_id, nome_cliente, pedido_id))
     conn.commit()
     conn.close()
 
@@ -94,7 +111,7 @@ def total_pedido(pedido_id):
 
 def historico_vendas(data_inicio=None, data_fim=None, status=None):
     conn = get_connection()
-    query = "SELECT * FROM pedidos WHERE 1=1"
+    query = _SELECT_PEDIDOS + " WHERE 1=1"
     params = []
     if data_inicio:
         query += " AND data_pedido >= ?"

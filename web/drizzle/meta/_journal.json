@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790682062887,
+      "tag": "0000_familiar_young_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790788534758,
+      "tag": "0001_pretty_abomination",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790789343717,
+      "tag": "0002_lame_bruce_banner",
+      "breakpoints": true
+    }
+  ]
+}

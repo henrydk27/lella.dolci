@@ -12,6 +12,7 @@ import ingredientes
 import embalagens
 import gastos
 import pedidos
+import clientes
 import datas
 import fontes
 
@@ -228,8 +229,8 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Lella Dolci - Controle de Vendas")
-        self.geometry("1080x800")
-        self.minsize(960, 680)
+        self.geometry("1080x880")
+        self.minsize(960, 720)
         self.configure(fg_color=COR_FUNDO)
 
         try:
@@ -264,6 +265,7 @@ class App(ctk.CTk):
         self.abas.pack(fill="both", expand=True, padx=22, pady=18)
 
         self.abas.add("Inicio")
+        self.abas.add("Clientes")
         self.abas.add("Produtos")
         self.abas.add("Ingredientes")
         self.abas.add("Embalagens")
@@ -273,6 +275,9 @@ class App(ctk.CTk):
 
         self.aba_inicio = AbaInicio(self.abas.tab("Inicio"))
         self.aba_inicio.pack(fill="both", expand=True)
+
+        self.aba_clientes = AbaClientes(self.abas.tab("Clientes"))
+        self.aba_clientes.pack(fill="both", expand=True)
 
         self.aba_produtos = AbaProdutos(self.abas.tab("Produtos"))
         self.aba_produtos.pack(fill="both", expand=True)
@@ -296,6 +301,7 @@ class App(ctk.CTk):
 
     def atualizar_tudo(self):
         self.aba_inicio.atualizar()
+        self.aba_clientes.atualizar()
         self.aba_produtos.atualizar()
         self.aba_ingredientes.atualizar()
         self.aba_historico.atualizar()
@@ -308,6 +314,8 @@ class App(ctk.CTk):
             self.aba_inicio.atualizar()
         elif aba_atual == "Produtos":
             self.aba_produtos.atualizar_categorias()
+        elif aba_atual == "Clientes":
+            self.aba_clientes.atualizar()
 
 
 # ---------------- ABA INICIO (DASHBOARD) ----------------
@@ -336,21 +344,37 @@ class AbaInicio(ctk.CTkFrame):
         self.card_mais_vendido.pack(side="left", fill="both", expand=True, padx=(10, 0))
 
         ctk.CTkLabel(
+            self, text="Relacionamento com clientes", font=fonte(16, titulo=True), text_color=COR_LILAS_NEON
+        ).pack(anchor="w", pady=(20, 8))
+
+        linha_cards_crm = ctk.CTkFrame(self, fg_color="transparent")
+        linha_cards_crm.pack(fill="x")
+
+        self.card_aniversariantes = self._criar_card(linha_cards_crm, "Aniversariantes do mes", altura=110)
+        self.card_aniversariantes.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+        self.card_inativos = self._criar_card(linha_cards_crm, "Clientes inativos", altura=110)
+        self.card_inativos.pack(side="left", fill="both", expand=True, padx=10)
+
+        self.card_cliente_top = self._criar_card(linha_cards_crm, "Cliente que mais gastou (mes)", altura=110)
+        self.card_cliente_top.pack(side="left", fill="both", expand=True, padx=(10, 0))
+
+        ctk.CTkLabel(
             self, text="Vendas por categoria (ano atual)", font=fonte(16, titulo=True), text_color=COR_LILAS_NEON
         ).pack(anchor="w", pady=(20, 8))
 
         container_categorias, self.tree_categorias = tabela(self, [
             ("categoria", "Categoria", 260), ("quantidade", "Quantidade vendida", 180),
         ])
-        container_categorias.configure(height=180)
+        container_categorias.configure(height=140)
         container_categorias.pack(fill="x")
         container_categorias.pack_propagate(False)
 
-    def _criar_card(self, master, titulo):
-        card = cartao(master, titulo=titulo, height=140)
+    def _criar_card(self, master, titulo, altura=140):
+        card = cartao(master, titulo=titulo, height=altura)
         card.pack_propagate(False)
-        valor = rotulo(card, "-", font=fonte(24, titulo=True), text_color=COR_TEXTO)
-        valor.pack(anchor="w", padx=18, pady=(6, 4))
+        valor = rotulo(card, "-", font=fonte(22, titulo=True), text_color=COR_TEXTO)
+        valor.pack(anchor="w", padx=18, pady=(2, 4))
         detalhe = rotulo(card, "", font=fonte(12), text_color=COR_TEXTO_SUAVE)
         detalhe.pack(anchor="w", padx=18)
         card.valor_label = valor
@@ -374,11 +398,206 @@ class AbaInicio(ctk.CTkFrame):
             self.card_mais_vendido.valor_label.configure(text="-")
             self.card_mais_vendido.detalhe_label.configure(text="sem vendas ainda")
 
+        aniversariantes = clientes.aniversariantes_do_mes()
+        self.card_aniversariantes.valor_label.configure(text=str(len(aniversariantes)))
+        nomes_aniversario = ", ".join(c["nome"] for c in aniversariantes[:3])
+        self.card_aniversariantes.detalhe_label.configure(text=nomes_aniversario or "nenhum este mes")
+
+        inativos = clientes.clientes_inativos()
+        self.card_inativos.valor_label.configure(text=str(len(inativos)))
+        self.card_inativos.detalhe_label.configure(text=f"sem comprar ha mais de {clientes.DIAS_INATIVIDADE} dias")
+
+        inicio_mes = datetime.now().strftime("%Y-%m-01")
+        top_cliente = clientes.cliente_maior_gasto(data_inicio=inicio_mes)
+        if top_cliente:
+            self.card_cliente_top.valor_label.configure(text=top_cliente["nome"])
+            self.card_cliente_top.detalhe_label.configure(text=f"R$ {top_cliente['total_gasto']:.2f} gastos este mes")
+        else:
+            self.card_cliente_top.valor_label.configure(text="-")
+            self.card_cliente_top.detalhe_label.configure(text="sem vendas este mes")
+
         ano_atual = datetime.now().strftime("%Y")
         for item in self.tree_categorias.get_children():
             self.tree_categorias.delete(item)
         for linha in pedidos.vendas_por_categoria(ano_atual):
             self.tree_categorias.insert("", "end", values=(linha["categoria"], linha["total"]))
+
+
+# ---------------- ABA CLIENTES ----------------
+
+CORES_STATUS_CLIENTE = {
+    "novo": COR_SALVIA,
+    "recorrente": COR_LILAS_NEON,
+    "vip": COR_LILAS_ESCURO,
+    "inativo": COR_ALERTA,
+}
+
+
+class AbaClientes(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="transparent")
+        self.cliente_selecionado = None
+        self._montar_layout()
+        self.atualizar()
+
+    def _montar_layout(self):
+        container_lista, self.tree = tabela(self, [
+            ("id", "ID", 45), ("nome", "Nome", 160), ("status", "Status", 90), ("total_gasto", "Total Gasto", 100), ("ultima_compra", "Ultima Compra", 110),
+        ])
+        container_lista.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=4)
+        self.tree.bind("<<TreeviewSelect>>", self._selecionar)
+
+        painel = cartao_rolavel(self, titulo="Cliente", width=380)
+        painel.pack(side="right", fill="y", pady=4)
+
+        rotulo(painel, "Nome").pack(anchor="w", padx=2)
+        self.entry_nome = campo(painel, "Nome do cliente")
+        self.entry_nome.pack(fill="x", padx=2, pady=(2, 8))
+
+        linha1 = ctk.CTkFrame(painel, fg_color="transparent")
+        linha1.pack(fill="x", padx=2, pady=(0, 8))
+        col_tel = ctk.CTkFrame(linha1, fg_color="transparent")
+        col_tel.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        rotulo(col_tel, "Telefone").pack(anchor="w")
+        self.entry_telefone = campo(col_tel, "Ex: 11999990000")
+        self.entry_telefone.pack(fill="x")
+        col_aniversario = ctk.CTkFrame(linha1, fg_color="transparent")
+        col_aniversario.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        rotulo(col_aniversario, "Aniversario").pack(anchor="w")
+        self.entry_aniversario = campo(col_aniversario, "DD/MM")
+        self.entry_aniversario.pack(fill="x")
+
+        rotulo(painel, "E-mail").pack(anchor="w", padx=2)
+        self.entry_email = campo(painel, "Opcional")
+        self.entry_email.pack(fill="x", padx=2, pady=(2, 8))
+
+        rotulo(painel, "Endereco").pack(anchor="w", padx=2)
+        self.entry_endereco = campo(painel, "Rua, bairro, cidade")
+        self.entry_endereco.pack(fill="x", padx=2, pady=(2, 8))
+
+        rotulo(painel, "Como conheceu a loja").pack(anchor="w", padx=2)
+        self.entry_como_conheceu = campo(painel, "Ex: Instagram, indicacao")
+        self.entry_como_conheceu.pack(fill="x", padx=2, pady=(2, 8))
+
+        rotulo(painel, "Notas").pack(anchor="w", padx=2)
+        self.entry_notas = campo(painel, "Preferencias, restricoes, etc.")
+        self.entry_notas.pack(fill="x", padx=2, pady=(2, 8))
+
+        frame_botoes = ctk.CTkFrame(painel, fg_color="transparent")
+        frame_botoes.pack(fill="x", padx=2, pady=(4, 8))
+        botao(frame_botoes, "Novo", self._limpar, width=90).pack(side="left", padx=(0, 6))
+        botao(frame_botoes, "Salvar", self._salvar, width=90).pack(side="left", padx=6)
+        botao(frame_botoes, "Remover", self._remover, perigo=True, width=90).pack(side="left", padx=6)
+
+        ctk.CTkFrame(painel, height=1, fg_color=COR_BORDA).pack(fill="x", padx=2, pady=8)
+
+        self.label_resumo_cliente = rotulo(
+            painel, "Selecione um cliente para ver o resumo", font=fonte(13, "bold"), text_color=COR_LILAS_NEON, justify="left"
+        )
+        self.label_resumo_cliente.pack(anchor="w", padx=2, pady=(0, 8))
+
+        rotulo(painel, "Historico de pedidos", font=fonte(13, "bold"), text_color=COR_LILAS_NEON).pack(anchor="w", padx=2)
+        container_pedidos, self.tree_pedidos_cliente = tabela(painel, [
+            ("id", "ID", 45), ("data", "Data", 130), ("status", "Status", 90), ("total", "Total", 90),
+        ])
+        container_pedidos.configure(height=140)
+        container_pedidos.pack(fill="x", padx=2, pady=(6, 16))
+        container_pedidos.pack_propagate(False)
+
+    def atualizar(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        for info in clientes.listar_clientes_com_status():
+            c = info["cliente"]
+            ultima = datas.iso_para_br(info["ultima_compra"][:10]) if info["ultima_compra"] else "-"
+            self.tree.insert("", "end", iid=c["id"], values=(
+                c["id"], c["nome"], info["status"], f"R$ {info['total_gasto']:.2f}", ultima,
+            ))
+
+    def _selecionar(self, event):
+        selecao = self.tree.selection()
+        if not selecao:
+            return
+        cliente_id = int(selecao[0])
+        perfil = clientes.perfil_cliente(cliente_id)
+        if not perfil:
+            return
+        c = perfil["cliente"]
+        self.cliente_selecionado = cliente_id
+
+        self.entry_nome.delete(0, tk.END)
+        self.entry_nome.insert(0, c["nome"])
+        self.entry_telefone.delete(0, tk.END)
+        self.entry_telefone.insert(0, c["telefone"] or "")
+        self.entry_aniversario.delete(0, tk.END)
+        self.entry_aniversario.insert(0, c["aniversario"] or "")
+        self.entry_email.delete(0, tk.END)
+        self.entry_email.insert(0, c["email"] or "")
+        self.entry_endereco.delete(0, tk.END)
+        self.entry_endereco.insert(0, c["endereco"] or "")
+        self.entry_como_conheceu.delete(0, tk.END)
+        self.entry_como_conheceu.insert(0, c["como_conheceu"] or "")
+        self.entry_notas.delete(0, tk.END)
+        self.entry_notas.insert(0, c["notas"] or "")
+
+        ultima = datas.iso_para_br(perfil["ultima_compra"][:10]) if perfil["ultima_compra"] else "-"
+        cor_status = CORES_STATUS_CLIENTE.get(perfil["status"], COR_TEXTO)
+        self.label_resumo_cliente.configure(
+            text=(
+                f"Status: {perfil['status'].upper()}\n"
+                f"Total gasto: R$ {perfil['total_gasto']:.2f}  |  Pedidos pagos: {perfil['quantidade_pedidos']}\n"
+                f"Ticket medio: R$ {perfil['ticket_medio']:.2f}  |  Ultima compra: {ultima}\n"
+                f"Produto favorito: {perfil['produto_favorito'] or '-'}"
+            ),
+            text_color=cor_status,
+        )
+
+        for item in self.tree_pedidos_cliente.get_children():
+            self.tree_pedidos_cliente.delete(item)
+        for p in clientes.historico_pedidos_cliente(cliente_id):
+            total = pedidos.total_pedido(p["id"])
+            self.tree_pedidos_cliente.insert("", "end", values=(
+                p["id"], datas.iso_para_br(p["data_pedido"]), p["status"], f"{total:.2f}",
+            ))
+
+    def _limpar(self):
+        self.cliente_selecionado = None
+        for entry in (self.entry_nome, self.entry_telefone, self.entry_aniversario, self.entry_email,
+                      self.entry_endereco, self.entry_como_conheceu, self.entry_notas):
+            entry.delete(0, tk.END)
+        self.label_resumo_cliente.configure(text="Selecione um cliente para ver o resumo", text_color=COR_LILAS_NEON)
+        for item in self.tree_pedidos_cliente.get_children():
+            self.tree_pedidos_cliente.delete(item)
+        self.tree.selection_remove(self.tree.selection())
+
+    def _salvar(self):
+        nome = self.entry_nome.get().strip()
+        if not nome:
+            messagebox.showerror("Erro", "Informe o nome do cliente.")
+            return
+        telefone = self.entry_telefone.get().strip() or None
+        aniversario = self.entry_aniversario.get().strip() or None
+        email = self.entry_email.get().strip() or None
+        endereco = self.entry_endereco.get().strip() or None
+        como_conheceu = self.entry_como_conheceu.get().strip() or None
+        notas = self.entry_notas.get().strip() or None
+
+        if self.cliente_selecionado:
+            clientes.atualizar_cliente(self.cliente_selecionado, nome, telefone, email, endereco, aniversario, como_conheceu, notas)
+        else:
+            self.cliente_selecionado = clientes.adicionar_cliente(nome, telefone, email, endereco, aniversario, como_conheceu, notas)
+
+        self.atualizar()
+        mostrar_toast(self, "Cliente salvo com sucesso.")
+
+    def _remover(self):
+        if not self.cliente_selecionado:
+            messagebox.showerror("Erro", "Selecione um cliente.")
+            return
+        if messagebox.askyesno("Confirmar", "Deseja remover este cliente? Os pedidos ja feitos por ele nao serao apagados."):
+            clientes.remover_cliente(self.cliente_selecionado)
+            self._limpar()
+            self.atualizar()
 
 
 # ---------------- ABA PRODUTOS ----------------
@@ -920,6 +1139,12 @@ class AbaPedidos(ctk.CTkFrame):
         self.label_info_pedido = rotulo(detalhe, "Selecione um pedido na lista acima", font=fonte(12, "bold"))
         self.label_info_pedido.pack(anchor="w", padx=18)
 
+        linha_cliente = ctk.CTkFrame(detalhe, fg_color="transparent")
+        linha_cliente.pack(fill="x", padx=18, pady=(6, 0))
+        rotulo(linha_cliente, "Cliente:").pack(side="left")
+        self.combo_cliente_pedido = combo_editavel(linha_cliente, [], width=220)
+        self.combo_cliente_pedido.pack(side="left", padx=(6, 0))
+
         linha_edicao = ctk.CTkFrame(detalhe, fg_color="transparent")
         linha_edicao.pack(fill="x", padx=18, pady=(8, 6))
 
@@ -960,8 +1185,11 @@ class AbaPedidos(ctk.CTkFrame):
         painel.pack_propagate(False)
 
         rotulo(painel, "Cliente").pack(anchor="w", padx=18)
-        self.entry_cliente = campo(painel, "Nome do cliente")
-        self.entry_cliente.pack(fill="x", padx=18, pady=(2, 10))
+        linha_cliente_novo = ctk.CTkFrame(painel, fg_color="transparent")
+        linha_cliente_novo.pack(fill="x", padx=18, pady=(2, 10))
+        self.combo_cliente_novo = combo_editavel(linha_cliente_novo, [])
+        self.combo_cliente_novo.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        botao(linha_cliente_novo, "+ Cliente", self._novo_cliente_rapido, width=90).pack(side="left")
 
         linha_datas = ctk.CTkFrame(painel, fg_color="transparent")
         linha_datas.pack(fill="x", padx=18, pady=(0, 10))
@@ -1006,6 +1234,26 @@ class AbaPedidos(ctk.CTkFrame):
         botao(painel, "Finalizar pedido", self._finalizar_pedido, height=42).pack(fill="x", padx=18, pady=(0, 18))
 
         self._carregar_produtos_combo()
+        self._carregar_clientes_combo()
+
+    def _carregar_clientes_combo(self):
+        self.clientes_disponiveis = clientes.listar_clientes()
+        nomes = [c["nome"] for c in self.clientes_disponiveis]
+        self.combo_cliente_novo.configure(values=nomes)
+        self.combo_cliente_novo.set("")
+        self.combo_cliente_pedido.configure(values=nomes)
+        if not self.pedido_selecionado:
+            self.combo_cliente_pedido.set("")
+
+    def _novo_cliente_rapido(self):
+        nome = simpledialog.askstring("Novo cliente", "Nome do cliente:")
+        if not nome or not nome.strip():
+            return
+        telefone = simpledialog.askstring("Novo cliente", "Telefone (opcional):") or None
+        clientes.adicionar_cliente(nome.strip(), telefone=telefone)
+        self._carregar_clientes_combo()
+        self.combo_cliente_novo.set(nome.strip())
+        mostrar_toast(self, "Cliente cadastrado.")
 
     def _carregar_produtos_combo(self):
         self.produtos_disponiveis = produtos.listar_produtos()
@@ -1057,9 +1305,9 @@ class AbaPedidos(ctk.CTkFrame):
         self.label_total.configure(text=f"Total: R$ {total:.2f}")
 
     def _finalizar_pedido(self):
-        cliente = self.entry_cliente.get().strip()
-        if not cliente:
-            messagebox.showerror("Erro", "Informe o nome do cliente.")
+        nome_cliente = self.combo_cliente_novo.get().strip()
+        if not nome_cliente:
+            messagebox.showerror("Erro", "Selecione ou digite o nome do cliente.")
             return
         if not self.itens_pedido:
             messagebox.showerror("Erro", "Adicione ao menos um item ao pedido.")
@@ -1071,13 +1319,14 @@ class AbaPedidos(ctk.CTkFrame):
             messagebox.showerror("Erro", "Data de entrega invalida. Use o formato DD/MM/AAAA.")
             return
 
+        cliente_id = clientes.buscar_ou_criar_cliente_por_nome(nome_cliente)
         observacoes = self.entry_obs.get().strip()
         forma_pagamento = self.combo_nova_forma_pagamento.get().strip() or None
-        pedido_id = pedidos.criar_pedido(cliente, self.itens_pedido, observacoes, data_entrega, forma_pagamento)
+        pedido_id = pedidos.criar_pedido(cliente_id, self.itens_pedido, observacoes, data_entrega, forma_pagamento)
         total = pedidos.total_pedido(pedido_id)
         mostrar_toast(self, f"Pedido #{pedido_id} criado! Total: R$ {total:.2f}")
 
-        self.entry_cliente.delete(0, tk.END)
+        self.combo_cliente_novo.set("")
         self.entry_obs.delete(0, tk.END)
         self.entry_nova_data_entrega.delete(0, tk.END)
         self.combo_nova_forma_pagamento.set("")
@@ -1092,9 +1341,10 @@ class AbaPedidos(ctk.CTkFrame):
             self.tree.delete(item)
         for p in pedidos.listar_pedidos():
             self.tree.insert("", "end", iid=p["id"], values=(
-                p["id"], p["cliente"], datas.iso_para_br(p["data_pedido"]), datas.iso_para_br(p["data_entrega"]) or "-", p["forma_pagamento"] or "-", p["status"],
+                p["id"], p["cliente_nome"], datas.iso_para_br(p["data_pedido"]), datas.iso_para_br(p["data_entrega"]) or "-", p["forma_pagamento"] or "-", p["status"],
             ))
         self._carregar_produtos_combo()
+        self._carregar_clientes_combo()
 
     def _selecionar_pedido(self, event):
         selecao = self.tree.selection()
@@ -1107,13 +1357,14 @@ class AbaPedidos(ctk.CTkFrame):
         self.pedido_selecionado = pedido_id
         self.combo_status.set(pedido["status"])
         self.combo_forma_pagamento.set(pedido["forma_pagamento"] or "")
+        self.combo_cliente_pedido.set(pedido["cliente_nome"] or "")
         self.entry_data_entrega.delete(0, tk.END)
         if pedido["data_entrega"]:
             self.entry_data_entrega.insert(0, datas.iso_para_br(pedido["data_entrega"]))
 
         obs = f" | Obs: {pedido['observacoes']}" if pedido["observacoes"] else ""
         self.label_info_pedido.configure(
-            text=f"Pedido #{pedido['id']} - {pedido['cliente']} | Criado em: {datas.iso_para_br(pedido['data_pedido'])}{obs}"
+            text=f"Pedido #{pedido['id']} | Criado em: {datas.iso_para_br(pedido['data_pedido'])}{obs}"
         )
 
         self._carregar_itens_pedido(itens)
@@ -1185,6 +1436,11 @@ class AbaPedidos(ctk.CTkFrame):
             return
         forma_pagamento = self.combo_forma_pagamento.get().strip() or None
         pedidos.atualizar_dados_pedido(self.pedido_selecionado, data_entrega, forma_pagamento, pedido["observacoes"])
+
+        nome_cliente = self.combo_cliente_pedido.get().strip()
+        if nome_cliente:
+            cliente_id = clientes.buscar_ou_criar_cliente_por_nome(nome_cliente)
+            pedidos.atualizar_cliente_pedido(self.pedido_selecionado, cliente_id)
 
         novo_status = self.combo_status.get()
         if novo_status:
@@ -1267,7 +1523,7 @@ class AbaHistorico(ctk.CTkFrame):
         registros = pedidos.historico_vendas(data_inicio, data_fim, status)
         for p in registros:
             total = pedidos.total_pedido(p["id"])
-            self.tree.insert("", "end", values=(p["id"], p["cliente"], datas.iso_para_br(p["data_pedido"]), p["status"], f"{total:.2f}"))
+            self.tree.insert("", "end", values=(p["id"], p["cliente_nome"], datas.iso_para_br(p["data_pedido"]), p["status"], f"{total:.2f}"))
 
         resumo = pedidos.resumo_vendas(data_inicio, data_fim)
         self.label_resumo.configure(text=f"Pedidos pagos: {resumo['quantidade_pedidos']}   |   Total vendido: R$ {resumo['total_vendas']:.2f}")

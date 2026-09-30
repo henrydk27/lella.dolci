@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --cor-fundo: #fbf3e6;
+  --cor-painel: #f7eada;
+  --cor-painel-claro: #fffcf6;
+  --cor-borda: #e7d4bc;
+  --cor-texto: #4a3324;
+  --cor-texto-suave: #9c8468;
+  --cor-terracota: #c9713f;
+  --cor-terracota-vibrante: #b85c2e;
+  --cor-terracota-hover: #a64e24;
+  --cor-salvia: #8fa377;
+  --cor-salvia-hover: #748a5d;
+  --cor-selecao: #e9e3cd;
+  --cor-alerta: #c1483a;
+  --cor-alerta-hover: #a63c30;
+}
+
+@theme inline {
+  --color-fundo: var(--cor-fundo);
+  --color-painel: var(--cor-painel);
+  --color-painel-claro: var(--cor-painel-claro);
+  --color-borda: var(--cor-borda);
+  --color-texto: var(--cor-texto);
+  --color-texto-suave: var(--cor-texto-suave);
+  --color-terracota: var(--cor-terracota);
+  --color-terracota-vibrante: var(--cor-terracota-vibrante);
+  --color-terracota-hover: var(--cor-terracota-hover);
+  --color-salvia: var(--cor-salvia);
+  --color-salvia-hover: var(--cor-salvia-hover);
+  --color-selecao: var(--cor-selecao);
+  --color-alerta: var(--cor-alerta);
+  --color-alerta-hover: var(--cor-alerta-hover);
+  --font-titulo: var(--font-titulo);
+  --font-corpo: var(--font-corpo);
+}
+
+body {
+  background: var(--cor-fundo);
+}

@@ -4,6 +4,7 @@ import ingredientes
 import embalagens
 import gastos
 import pedidos
+import clientes
 import datas
 
 
@@ -123,6 +124,147 @@ def ajustar_estoque_tela():
     delta = ler_float("Quantidade a adicionar (use negativo para remover): ")
     ingredientes.ajustar_estoque(id_ing, delta)
     print("Estoque ajustado.")
+
+
+# ---------------- CLIENTES ----------------
+
+def menu_clientes():
+    while True:
+        print("\n=== CLIENTES ===")
+        print("1. Listar clientes")
+        print("2. Ver ficha de um cliente (historico, gasto total, status)")
+        print("3. Adicionar cliente")
+        print("4. Editar cliente")
+        print("5. Remover cliente")
+        print("6. Aniversariantes do mes")
+        print("7. Clientes inativos")
+        print("0. Voltar")
+        opcao = input("Escolha: ").strip()
+
+        if opcao == "1":
+            listar_clientes_tela()
+        elif opcao == "2":
+            ver_cliente_tela()
+        elif opcao == "3":
+            adicionar_cliente_tela()
+        elif opcao == "4":
+            editar_cliente_tela()
+        elif opcao == "5":
+            remover_cliente_tela()
+        elif opcao == "6":
+            aniversariantes_tela()
+        elif opcao == "7":
+            inativos_tela()
+        elif opcao == "0":
+            break
+        else:
+            print("Opcao invalida.")
+
+
+def listar_clientes_tela():
+    itens = clientes.listar_clientes_com_status()
+    print("\nID  Nome                      Status       Total Gasto   Ultima Compra")
+    for info in itens:
+        c = info["cliente"]
+        ultima = datas.iso_para_br(info["ultima_compra"][:10]) if info["ultima_compra"] else "-"
+        print(f"{c['id']:<3} {c['nome']:<25} {info['status']:<12} R$ {info['total_gasto']:<10.2f} {ultima}")
+    if not itens:
+        print("Nenhum cliente cadastrado.")
+
+
+def ver_cliente_tela():
+    listar_clientes_tela()
+    id_cliente = ler_int("\nID do cliente: ")
+    perfil = clientes.perfil_cliente(id_cliente)
+    if not perfil:
+        print("Cliente nao encontrado.")
+        return
+    c = perfil["cliente"]
+    ultima = datas.iso_para_br(perfil["ultima_compra"][:10]) if perfil["ultima_compra"] else "-"
+    print(f"\n{c['nome']} | Status: {perfil['status'].upper()}")
+    print(f"Telefone: {c['telefone'] or '-'} | E-mail: {c['email'] or '-'} | Aniversario: {c['aniversario'] or '-'}")
+    print(f"Endereco: {c['endereco'] or '-'}")
+    print(f"Como conheceu: {c['como_conheceu'] or '-'}")
+    if c["notas"]:
+        print(f"Notas: {c['notas']}")
+    print(f"\nTotal gasto: R$ {perfil['total_gasto']:.2f} | Pedidos pagos: {perfil['quantidade_pedidos']} | Ticket medio: R$ {perfil['ticket_medio']:.2f}")
+    print(f"Ultima compra: {ultima} | Produto favorito: {perfil['produto_favorito'] or '-'}")
+
+    print("\nHistorico de pedidos:")
+    for p in clientes.historico_pedidos_cliente(id_cliente):
+        total = pedidos.total_pedido(p["id"])
+        print(f"  [{p['id']}] {datas.iso_para_br(p['data_pedido'])} - {p['status']} - R$ {total:.2f}")
+
+
+def adicionar_cliente_tela():
+    nome = input("Nome do cliente: ").strip()
+    telefone = input("Telefone (opcional): ").strip() or None
+    email = input("E-mail (opcional): ").strip() or None
+    endereco = input("Endereco (opcional): ").strip() or None
+    aniversario = input("Aniversario DD/MM (opcional): ").strip() or None
+    como_conheceu = input("Como conheceu a loja (opcional): ").strip() or None
+    notas = input("Notas (opcional): ").strip() or None
+    clientes.adicionar_cliente(nome, telefone, email, endereco, aniversario, como_conheceu, notas)
+    print("Cliente adicionado com sucesso.")
+
+
+def editar_cliente_tela():
+    listar_clientes_tela()
+    id_cliente = ler_int("\nID do cliente a editar: ")
+    c = clientes.buscar_cliente(id_cliente)
+    if not c:
+        print("Cliente nao encontrado.")
+        return
+    nome = input(f"Nome [{c['nome']}]: ").strip() or c["nome"]
+    telefone = input(f"Telefone [{c['telefone'] or ''}]: ").strip() or c["telefone"]
+    email = input(f"E-mail [{c['email'] or ''}]: ").strip() or c["email"]
+    endereco = input(f"Endereco [{c['endereco'] or ''}]: ").strip() or c["endereco"]
+    aniversario = input(f"Aniversario [{c['aniversario'] or ''}]: ").strip() or c["aniversario"]
+    como_conheceu = input(f"Como conheceu [{c['como_conheceu'] or ''}]: ").strip() or c["como_conheceu"]
+    notas = input(f"Notas [{c['notas'] or ''}]: ").strip() or c["notas"]
+    clientes.atualizar_cliente(id_cliente, nome, telefone, email, endereco, aniversario, como_conheceu, notas)
+    print("Cliente atualizado.")
+
+
+def remover_cliente_tela():
+    listar_clientes_tela()
+    id_cliente = ler_int("\nID do cliente a remover: ")
+    if messagebox_simples("Os pedidos ja feitos por este cliente nao serao apagados. Confirma remocao? (s/n): "):
+        clientes.remover_cliente(id_cliente)
+        print("Cliente removido.")
+
+
+def messagebox_simples(mensagem):
+    return input(mensagem).strip().lower() in ("s", "sim")
+
+
+def aniversariantes_tela():
+    itens = clientes.aniversariantes_do_mes()
+    print("\nAniversariantes do mes:")
+    for c in itens:
+        print(f"  {c['nome']} - {c['aniversario']} - {c['telefone'] or 'sem telefone'}")
+    if not itens:
+        print("Nenhum aniversariante este mes.")
+
+
+def inativos_tela():
+    itens = clientes.clientes_inativos()
+    print(f"\nClientes sem comprar ha mais de {clientes.DIAS_INATIVIDADE} dias:")
+    for info in itens:
+        c = info["cliente"]
+        print(f"  {c['nome']} - {info['dias_sem_compra']} dias sem comprar - {c['telefone'] or 'sem telefone'}")
+    if not itens:
+        print("Nenhum cliente inativo.")
+
+
+def escolher_cliente_para_pedido():
+    """Fluxo rapido: digita o nome, reaproveita cliente existente ou cria um novo."""
+    clientes.listar_clientes()
+    itens = clientes.listar_clientes()
+    if itens:
+        print("\nClientes cadastrados:", ", ".join(c["nome"] for c in itens))
+    nome = input("Nome do cliente (novo ou existente): ").strip()
+    return clientes.buscar_ou_criar_cliente_por_nome(nome)
 
 
 # ---------------- EMBALAGENS ----------------
@@ -372,7 +514,7 @@ def menu_pedidos():
 
 
 def novo_pedido_tela():
-    cliente = input("Nome do cliente: ").strip()
+    cliente_id = escolher_cliente_para_pedido()
     data_entrega = ler_data_iso("Data de entrega (DD/MM/AAAA, opcional): ")
     forma_pagamento = input("Forma de pagamento (pix/dinheiro/cartao_debito/cartao_credito/outro, opcional): ").strip() or None
     observacoes = input("Observacoes (opcional): ").strip()
@@ -399,7 +541,7 @@ def novo_pedido_tela():
         print("Pedido cancelado (nenhum item adicionado).")
         return
 
-    pedido_id = pedidos.criar_pedido(cliente, itens, observacoes, data_entrega, forma_pagamento)
+    pedido_id = pedidos.criar_pedido(cliente_id, itens, observacoes, data_entrega, forma_pagamento)
     total = pedidos.total_pedido(pedido_id)
     print(f"\nPedido #{pedido_id} criado com sucesso! Total: R$ {total:.2f}")
 
@@ -408,7 +550,7 @@ def listar_pedidos_tela():
     itens = pedidos.listar_pedidos()
     print("\nID  Cliente               Data                 Entrega      Pagamento        Status")
     for p in itens:
-        print(f"{p['id']:<3} {p['cliente']:<20} {datas.iso_para_br(p['data_pedido']):<20} {datas.iso_para_br(p['data_entrega']) or '-':<12} {p['forma_pagamento'] or '-':<16} {p['status']}")
+        print(f"{p['id']:<3} {p['cliente_nome']:<20} {datas.iso_para_br(p['data_pedido']):<20} {datas.iso_para_br(p['data_entrega']) or '-':<12} {p['forma_pagamento'] or '-':<16} {p['status']}")
     if not itens:
         print("Nenhum pedido cadastrado.")
 
@@ -421,7 +563,7 @@ def ver_pedido_tela():
         print("Pedido nao encontrado.")
         return
 
-    print(f"\nPedido #{pedido['id']} - {pedido['cliente']}")
+    print(f"\nPedido #{pedido['id']} - {pedido['cliente_nome']}")
     print(f"Data: {datas.iso_para_br(pedido['data_pedido'])} | Entrega: {datas.iso_para_br(pedido['data_entrega']) or '-'} | Pagamento: {pedido['forma_pagamento'] or '-'} | Status: {pedido['status']}")
     if pedido["observacoes"]:
         print(f"Obs: {pedido['observacoes']}")
@@ -491,6 +633,11 @@ def atualizar_dados_pedido_tela():
         data_entrega = pedido["data_entrega"]
     forma_pagamento = input(f"Forma de pagamento [{pedido['forma_pagamento'] or ''}]: ").strip() or pedido["forma_pagamento"]
     pedidos.atualizar_dados_pedido(id_pedido, data_entrega, forma_pagamento, pedido["observacoes"])
+
+    novo_cliente = input(f"Cliente [{pedido['cliente_nome']}] (deixe vazio para manter): ").strip()
+    if novo_cliente:
+        cliente_id = clientes.buscar_ou_criar_cliente_por_nome(novo_cliente)
+        pedidos.atualizar_cliente_pedido(id_pedido, cliente_id)
     print("Dados do pedido atualizados.")
 
 
@@ -545,7 +692,7 @@ def exibir_historico(itens):
     print("\nID  Cliente               Data                 Status")
     for p in itens:
         total = pedidos.total_pedido(p["id"])
-        print(f"{p['id']:<3} {p['cliente']:<20} {datas.iso_para_br(p['data_pedido']):<20} {p['status']:<12} R$ {total:.2f}")
+        print(f"{p['id']:<3} {p['cliente_nome']:<20} {datas.iso_para_br(p['data_pedido']):<20} {p['status']:<12} R$ {total:.2f}")
     if not itens:
         print("Nenhum registro encontrado.")
 
@@ -648,6 +795,13 @@ def exibir_resumo_inicial():
     else:
         print("Produto mais vendido: sem vendas ainda")
 
+    aniversariantes = clientes.aniversariantes_do_mes()
+    if aniversariantes:
+        print(f"Aniversariantes do mes: {', '.join(c['nome'] for c in aniversariantes)}")
+    inativos = clientes.clientes_inativos()
+    if inativos:
+        print(f"Clientes inativos (sem comprar ha mais de {clientes.DIAS_INATIVIDADE} dias): {len(inativos)}")
+
 
 def menu_principal():
     db.init_db()
@@ -657,26 +811,29 @@ def menu_principal():
         print("========================================")
         exibir_resumo_inicial()
         print("----------------------------------------")
-        print("1. Produtos")
-        print("2. Ingredientes")
-        print("3. Embalagens")
-        print("4. Pedidos")
-        print("5. Historico de vendas")
-        print("6. Gastos")
+        print("1. Clientes")
+        print("2. Produtos")
+        print("3. Ingredientes")
+        print("4. Embalagens")
+        print("5. Pedidos")
+        print("6. Historico de vendas")
+        print("7. Gastos")
         print("0. Sair")
         opcao = input("Escolha: ").strip()
 
         if opcao == "1":
-            menu_produtos()
+            menu_clientes()
         elif opcao == "2":
-            menu_ingredientes()
+            menu_produtos()
         elif opcao == "3":
-            menu_embalagens()
+            menu_ingredientes()
         elif opcao == "4":
-            menu_pedidos()
+            menu_embalagens()
         elif opcao == "5":
-            menu_historico()
+            menu_pedidos()
         elif opcao == "6":
+            menu_historico()
+        elif opcao == "7":
             menu_gastos()
         elif opcao == "0":
             print("Ate logo!")
