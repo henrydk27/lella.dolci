@@ -1,10 +1,10 @@
 import Link from "next/link";
 import * as pedidos from "@/lib/pedidos";
-import { Tabela, TabelaCabecalho, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
+import { Tabela, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { Botao } from "@/components/ui/Botao";
 
 function dataBr(iso: string) {
-  return iso.slice(0, 10).split("-").reverse().join("/") + " " + iso.slice(11, 16);
+  return iso.slice(0, 10).split("-").reverse().join("/");
 }
 
 const ROTULOS_TIPO: Record<string, string> = {
@@ -18,14 +18,67 @@ const ABAS = [
   { valor: "pronta_entrega", texto: "Pronta entrega" },
 ];
 
+type Pedido = Awaited<ReturnType<typeof pedidos.listarPedidos>>[number];
+
+const COLUNAS_ORDENAVEIS: { campo: string; rotulo: string }[] = [
+  { campo: "id", rotulo: "ID" },
+  { campo: "cliente", rotulo: "Cliente" },
+  { campo: "tipo", rotulo: "Tipo" },
+  { campo: "data", rotulo: "Data" },
+  { campo: "entrega", rotulo: "Entrega" },
+  { campo: "pagamento", rotulo: "Pagamento" },
+  { campo: "status", rotulo: "Status" },
+];
+
+function valorOrdenavel(p: Pedido, campo: string): string | number {
+  switch (campo) {
+    case "id":
+      return p.id;
+    case "cliente":
+      return (p.clienteNome ?? "").toLowerCase();
+    case "tipo":
+      return ROTULOS_TIPO[p.tipo] ?? p.tipo;
+    case "data":
+      return p.dataPedido;
+    case "entrega":
+      return p.dataEntrega ?? "";
+    case "pagamento":
+      return p.formaPagamento ?? "";
+    case "status":
+      return p.status;
+    default:
+      return "";
+  }
+}
+
 export default async function PedidosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tipo?: string }>;
+  searchParams: Promise<{ tipo?: string; ordenar?: string; dir?: string }>;
 }) {
-  const { tipo } = await searchParams;
+  const { tipo, ordenar, dir } = await searchParams;
   const todos = await pedidos.listarPedidos();
   const itens = tipo ? todos.filter((p) => p.tipo === tipo) : todos;
+
+  const campoAtivo = COLUNAS_ORDENAVEIS.some((c) => c.campo === ordenar) ? ordenar! : "data";
+  const direcao = dir === "asc" ? "asc" : "desc";
+
+  const itensOrdenados = [...itens].sort((a, b) => {
+    const va = valorOrdenavel(a, campoAtivo);
+    const vb = valorOrdenavel(b, campoAtivo);
+    if (va < vb) return direcao === "asc" ? -1 : 1;
+    if (va > vb) return direcao === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  function hrefOrdenar(campo: string) {
+    const novaDirecao = campoAtivo === campo && direcao === "asc" ? "desc" : "asc";
+    const params = new URLSearchParams();
+    if (tipo) params.set("tipo", tipo);
+    params.set("ordenar", campo);
+    params.set("dir", novaDirecao);
+    return `/pedidos?${params.toString()}`;
+  }
 
   return (
     <div className="space-y-6">
@@ -53,10 +106,22 @@ export default async function PedidosPage({
       </div>
 
       <Tabela>
-        <TabelaCabecalho colunas={["ID", "Cliente", "Tipo", "Data", "Entrega", "Pagamento", "Status", ""]} />
+        <thead className="bg-painel">
+          <tr>
+            {COLUNAS_ORDENAVEIS.map((c) => (
+              <th key={c.campo} className="whitespace-nowrap px-4 py-3 font-bold text-terracota-vibrante">
+                <Link href={hrefOrdenar(c.campo)} className="flex items-center gap-1 hover:underline">
+                  {c.rotulo}
+                  {campoAtivo === c.campo && <span>{direcao === "asc" ? "▲" : "▼"}</span>}
+                </Link>
+              </th>
+            ))}
+            <th className="whitespace-nowrap px-4 py-3 font-bold text-terracota-vibrante"></th>
+          </tr>
+        </thead>
         <tbody>
-          {itens.length === 0 && <TabelaVazia colunas={8} texto="Nenhum pedido cadastrado." />}
-          {itens.map((p) => (
+          {itensOrdenados.length === 0 && <TabelaVazia colunas={8} texto="Nenhum pedido cadastrado." />}
+          {itensOrdenados.map((p) => (
             <TabelaLinha key={p.id}>
               <TabelaCelula>#{p.id}</TabelaCelula>
               <TabelaCelula>{p.clienteNome ?? "-"}</TabelaCelula>
