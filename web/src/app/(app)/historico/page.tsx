@@ -21,9 +21,11 @@ export default async function HistoricoPage({
   const { inicio, fim, status, tipo } = await searchParams;
 
   const registros = await pedidos.historicoVendas(inicio, fim, status, tipo);
-  const registrosComTotal = await Promise.all(
-    registros.map(async (p) => ({ ...p, total: await pedidos.totalPedido(p.id) }))
-  );
+  const totaisItens = await pedidos.totaisPorPedidoIds(registros.map((p) => p.id));
+  const registrosComTotal = registros.map((p) => ({
+    ...p,
+    total: (totaisItens.get(p.id) ?? 0) + p.taxaEntrega,
+  }));
   const resumo = await pedidos.resumoVendas(inicio, fim, tipo);
   const resumoPorTipo = await pedidos.resumoPorTipo(inicio, fim);
 

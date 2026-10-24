@@ -59,25 +59,20 @@ export async function removerCliente(id: number) {
 }
 
 async function estatisticasCliente(clienteId: number): Promise<EstatisticasCliente> {
-  const pedidosPagos = await db
-    .select({ id: pedidos.id, dataPedido: pedidos.dataPedido })
+  const [agregado] = await db
+    .select({
+      quantidadePedidos: sql<number>`COUNT(DISTINCT ${pedidos.id})`,
+      totalGasto: sql<number>`COALESCE(SUM(${pedidoItens.quantidade} * ${pedidoItens.precoUnitario}), 0)`,
+      ultimaCompra: sql<string | null>`MAX(${pedidos.dataPedido})`,
+    })
     .from(pedidos)
+    .innerJoin(pedidoItens, eq(pedidoItens.pedidoId, pedidos.id))
     .where(and(eq(pedidos.clienteId, clienteId), eq(pedidos.status, "pago")));
 
-  let totalGasto = 0;
-  for (const p of pedidosPagos) {
-    const [{ subtotal }] = await db
-      .select({ subtotal: sql<number>`COALESCE(SUM(${pedidoItens.quantidade} * ${pedidoItens.precoUnitario}), 0)` })
-      .from(pedidoItens)
-      .where(eq(pedidoItens.pedidoId, p.id));
-    totalGasto += subtotal;
-  }
-
-  const quantidadePedidos = pedidosPagos.length;
+  const quantidadePedidos = agregado?.quantidadePedidos ?? 0;
+  const totalGasto = agregado?.totalGasto ?? 0;
+  const ultimaCompra = agregado?.ultimaCompra ?? null;
   const ticketMedio = quantidadePedidos ? totalGasto / quantidadePedidos : 0;
-  const ultimaCompra = pedidosPagos.length
-    ? pedidosPagos.reduce((max, p) => (p.dataPedido > max ? p.dataPedido : max), pedidosPagos[0].dataPedido)
-    : null;
 
   const [favorito] = await db
     .select({ nome: produtos.nome, total: sql<number>`SUM(${pedidoItens.quantidade})`.as("total") })
@@ -96,6 +91,37 @@ async function estatisticasCliente(clienteId: number): Promise<EstatisticasClien
     ultimaCompra,
     produtoFavorito: favorito?.nome ?? null,
   };
+}
+
+interface EstatisticasBasicas {
+  totalGasto: number;
+  quantidadePedidos: number;
+  ultimaCompra: string | null;
+}
+
+async function estatisticasBasicasTodosClientes(): Promise<Map<number, EstatisticasBasicas>> {
+  const linhas = await db
+    .select({
+      clienteId: pedidos.clienteId,
+      quantidadePedidos: sql<number>`COUNT(DISTINCT ${pedidos.id})`,
+      totalGasto: sql<number>`COALESCE(SUM(${pedidoItens.quantidade} * ${pedidoItens.precoUnitario}), 0)`,
+      ultimaCompra: sql<string | null>`MAX(${pedidos.dataPedido})`,
+    })
+    .from(pedidos)
+    .innerJoin(pedidoItens, eq(pedidoItens.pedidoId, pedidos.id))
+    .where(eq(pedidos.status, "pago"))
+    .groupBy(pedidos.clienteId);
+
+  const mapa = new Map<number, EstatisticasBasicas>();
+  for (const l of linhas) {
+    if (l.clienteId == null) continue;
+    mapa.set(l.clienteId, {
+      totalGasto: l.totalGasto,
+      quantidadePedidos: l.quantidadePedidos,
+      ultimaCompra: l.ultimaCompra,
+    });
+  }
+  return mapa;
 }
 
 export function calcularStatus(estatisticas: EstatisticasCliente): StatusCliente {
@@ -127,12 +153,17 @@ export async function historicoPedidosCliente(clienteId: number) {
 
 export async function listarClientesComStatus() {
   const todos = await listarClientes();
-  const resultado = [];
-  for (const cliente of todos) {
-    const estatisticas = await estatisticasCliente(cliente.id);
-    resultado.push({ cliente, ...estatisticas, status: calcularStatus(estatisticas) });
-  }
-  return resultado;
+  const estatisticasPorCliente = await estatisticasBasicasTodosClientes();
+  return todos.map((cliente) => {
+    const basicas = estatisticasPorCliente.get(cliente.id) ?? {
+      totalGasto: 0,
+      quantidadePedidos: 0,
+      ultimaCompra: null,
+    };
+    const estatisticas: EstatisticasCliente = { ...basicas, ticketMedio: 0, produtoFavorito: null };
+    estatisticas.ticketMedio = estatisticas.quantidadePedidos ? estatisticas.totalGasto / estatisticas.quantidadePedidos : 0;
+    return { cliente, ...estatisticas, status: calcularStatus(estatisticas) };
+  });
 }
 
 export async function buscarOuCriarClientePorNome(nomeBruto: string): Promise<number> {
@@ -164,14 +195,20 @@ export async function aniversariantesDoMes(): Promise<Cliente[]> {
 
 export async function clientesInativos(dias = DIAS_INATIVIDADE) {
   const todos = await listarClientes();
+  const estatisticasPorCliente = await estatisticasBasicasTodosClientes();
   const resultado = [];
   for (const cliente of todos) {
-    const estatisticas = await estatisticasCliente(cliente.id);
-    if (estatisticas.quantidadePedidos === 0 || !estatisticas.ultimaCompra) continue;
+    const basicas = estatisticasPorCliente.get(cliente.id);
+    if (!basicas || basicas.quantidadePedidos === 0 || !basicas.ultimaCompra) continue;
     const diasSemCompra = Math.floor(
-      (Date.now() - new Date(estatisticas.ultimaCompra.slice(0, 10)).getTime()) / (1000 * 60 * 60 * 24)
+      (Date.now() - new Date(basicas.ultimaCompra.slice(0, 10)).getTime()) / (1000 * 60 * 60 * 24)
     );
     if (diasSemCompra > dias) {
+      const estatisticas: EstatisticasCliente = {
+        ...basicas,
+        ticketMedio: basicas.totalGasto / basicas.quantidadePedidos,
+        produtoFavorito: null,
+      };
       resultado.push({ cliente, diasSemCompra, ...estatisticas });
     }
   }

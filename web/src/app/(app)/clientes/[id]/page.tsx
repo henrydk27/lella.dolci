@@ -21,9 +21,11 @@ export default async function FichaClientePage({ params }: { params: Promise<{ i
   const { cliente } = perfil;
 
   const historico = await clientes.historicoPedidosCliente(cliente.id);
-  const historicoComTotal = await Promise.all(
-    historico.map(async (p) => ({ ...p, total: await pedidos.totalPedido(p.id) }))
-  );
+  const totaisItens = await pedidos.totaisPorPedidoIds(historico.map((p) => p.id));
+  const historicoComTotal = historico.map((p) => ({
+    ...p,
+    total: (totaisItens.get(p.id) ?? 0) + p.taxaEntrega,
+  }));
 
   const salvar = atualizarCliente.bind(null, cliente.id);
   const remover = removerCliente.bind(null, cliente.id);

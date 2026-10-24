@@ -1,4 +1,4 @@
-import { eq, desc, asc, and, gte, lte, sql, ne } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, sql, ne, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { pedidos, pedidoItens, produtos, clientes, STATUS_PEDIDO, TIPOS_PEDIDO } from "@/db/schema";
 import { ajustarEstoqueProduzido } from "./produtos";
@@ -167,6 +167,24 @@ export async function totalPedido(id: number): Promise<number> {
   return totalItens + (pedido?.taxaEntrega ?? 0);
 }
 
+// Totais de varios pedidos de uma vez (uma unica query), para evitar fazer
+// uma query por pedido ao listar paginas com muitos registros.
+export async function totaisPorPedidoIds(ids: number[]): Promise<Map<number, number>> {
+  if (ids.length === 0) return new Map();
+  const linhas = await db
+    .select({
+      pedidoId: pedidoItens.pedidoId,
+      total: sql<number>`SUM(${pedidoItens.quantidade} * ${pedidoItens.precoUnitario})`,
+    })
+    .from(pedidoItens)
+    .where(inArray(pedidoItens.pedidoId, ids))
+    .groupBy(pedidoItens.pedidoId);
+
+  const mapa = new Map<number, number>();
+  for (const l of linhas) mapa.set(l.pedidoId, l.total);
+  return mapa;
+}
+
 export async function historicoVendas(dataInicio?: string, dataFim?: string, status?: string, tipo?: string) {
   const condicoes = [];
   if (dataInicio) condicoes.push(gte(pedidos.dataPedido, dataInicio));
@@ -180,12 +198,29 @@ export async function historicoVendas(dataInicio?: string, dataFim?: string, sta
 }
 
 export async function resumoVendas(dataInicio?: string, dataFim?: string, tipo?: string) {
-  const registros = await historicoVendas(dataInicio, dataFim, "pago", tipo);
-  let total = 0;
-  for (const p of registros) {
-    total += await totalPedido(p.id);
-  }
-  return { quantidadePedidos: registros.length, totalVendas: total };
+  const condicoes = [eq(pedidos.status, "pago")];
+  if (dataInicio) condicoes.push(gte(pedidos.dataPedido, dataInicio));
+  if (dataFim) condicoes.push(lte(pedidos.dataPedido, dataFim + " 23:59:59"));
+  if (tipo) condicoes.push(eq(pedidos.tipo, tipo));
+
+  const [itens] = await db
+    .select({
+      quantidadePedidos: sql<number>`COUNT(DISTINCT ${pedidos.id})`,
+      itensTotal: sql<number>`COALESCE(SUM(${pedidoItens.quantidade} * ${pedidoItens.precoUnitario}), 0)`,
+    })
+    .from(pedidos)
+    .innerJoin(pedidoItens, eq(pedidoItens.pedidoId, pedidos.id))
+    .where(and(...condicoes));
+
+  const [{ taxaTotal }] = await db
+    .select({ taxaTotal: sql<number>`COALESCE(SUM(${pedidos.taxaEntrega}), 0)` })
+    .from(pedidos)
+    .where(and(...condicoes));
+
+  return {
+    quantidadePedidos: itens?.quantidadePedidos ?? 0,
+    totalVendas: (itens?.itensTotal ?? 0) + (taxaTotal ?? 0),
+  };
 }
 
 export async function resumoMesAtual() {
