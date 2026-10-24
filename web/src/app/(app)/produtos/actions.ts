@@ -14,12 +14,17 @@ function texto(formData: FormData, campo: string): string | null {
   return valor === "" ? null : valor;
 }
 
+function categoriaEscolhida(formData: FormData): string | null {
+  // "Nova categoria" tem prioridade sobre a selecionada no menu suspenso.
+  return texto(formData, "novaCategoria") ?? texto(formData, "categoria");
+}
+
 export async function criarProduto(formData: FormData) {
   await produtos.adicionarProduto({
     nome: String(formData.get("nome") ?? "").trim(),
     preco: numero(formData, "preco"),
     descricao: texto(formData, "descricao"),
-    categoria: texto(formData, "categoria"),
+    categoria: categoriaEscolhida(formData),
     taxaOverhead: numero(formData, "taxaOverhead", 10),
   });
   revalidatePath("/produtos");
@@ -31,7 +36,7 @@ export async function atualizarProduto(id: number, formData: FormData) {
     nome: String(formData.get("nome") ?? "").trim(),
     preco: numero(formData, "preco"),
     descricao: texto(formData, "descricao"),
-    categoria: texto(formData, "categoria"),
+    categoria: categoriaEscolhida(formData),
     taxaOverhead: numero(formData, "taxaOverhead", 10),
   });
   revalidatePath("/produtos");

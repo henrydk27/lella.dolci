@@ -39,12 +39,17 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
       <Cartao titulo="Dados do produto">
         <form action={salvar} className="space-y-4">
           <Campo rotulo="Nome" name="nome" defaultValue={produto.nome} required />
-          <Campo rotulo="Categoria" name="categoria" list="categorias" defaultValue={produto.categoria ?? ""} />
-          <datalist id="categorias">
-            {categorias.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
+          <CampoSelect
+            rotulo="Categoria"
+            name="categoria"
+            defaultValue={produto.categoria ?? ""}
+            opcoes={[{ valor: "", texto: "-" }, ...categorias.map((c) => ({ valor: c, texto: c }))]}
+          />
+          <Campo
+            rotulo="Nova categoria (preencha só se precisar de uma categoria que não está na lista acima)"
+            name="novaCategoria"
+            placeholder="Opcional"
+          />
           <div className="grid grid-cols-2 gap-3">
             <Campo rotulo="Preço de venda" name="preco" type="number" step="any" defaultValue={produto.preco} required />
             <Campo

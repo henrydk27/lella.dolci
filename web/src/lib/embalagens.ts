@@ -4,6 +4,8 @@ import { embalagens } from "@/db/schema";
 
 export type Embalagem = typeof embalagens.$inferSelect;
 
+export const CATEGORIAS = ["Tecido", "Fita", "Embalagem", "Decoração", "Descartável"];
+
 export async function listarEmbalagens(): Promise<Embalagem[]> {
   return db.select().from(embalagens).orderBy(asc(embalagens.nome));
 }
