@@ -1,6 +1,7 @@
-import { eq, desc, and, gte, lte, sql, ne } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, sql, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { pedidos, pedidoItens, produtos, clientes, STATUS_PEDIDO, TIPOS_PEDIDO } from "@/db/schema";
+import { ajustarEstoqueProduzido } from "./produtos";
 
 export { STATUS_PEDIDO, TIPOS_PEDIDO };
 
@@ -17,7 +18,7 @@ function nowIso(): string {
 }
 
 export async function criarPedido(
-  clienteId: number,
+  clienteId: number | null,
   itens: ItemPedidoEntrada[],
   observacoes = "",
   dataEntrega: string | null = null,
@@ -44,6 +45,11 @@ export async function criarPedido(
       quantidade: item.quantidade,
       precoUnitario: item.precoUnitario,
     });
+    // Pronta entrega vende do que ja esta pronto no estoque: o produto sai
+    // da prateleira na hora, entao desconta ja na criacao do pedido.
+    if (tipo === "pronta_entrega") {
+      await ajustarEstoqueProduzido(item.produtoId, -item.quantidade);
+    }
   }
 
   return pedido.id;
@@ -110,6 +116,11 @@ export async function atualizarDadosPedido(
 
 export async function removerPedido(id: number) {
   await db.delete(pedidos).where(eq(pedidos.id, id));
+}
+
+export async function buscarItemPedido(itemId: number) {
+  const [item] = await db.select().from(pedidoItens).where(eq(pedidoItens.id, itemId));
+  return item;
 }
 
 export async function atualizarQuantidadeItem(itemId: number, quantidade: number) {
@@ -189,6 +200,26 @@ export async function produtoMaisVendido() {
     .orderBy(desc(sql`total_vendido`))
     .limit(1);
   return linha;
+}
+
+export async function encomendasFuturasPendentes() {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const registros = await selectPedidos()
+    .where(
+      and(
+        eq(pedidos.tipo, "encomenda"),
+        ne(pedidos.status, "pago"),
+        sql`${pedidos.dataEntrega} IS NOT NULL`,
+        gte(pedidos.dataEntrega, hoje)
+      )
+    )
+    .orderBy(asc(pedidos.dataEntrega));
+
+  const resultado = [];
+  for (const p of registros) {
+    resultado.push({ ...p, total: await totalPedido(p.id) });
+  }
+  return resultado;
 }
 
 export async function vendasPorCategoria(ano?: string) {

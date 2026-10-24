@@ -1,6 +1,7 @@
 import { eq, and, asc, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { planoProducaoItens, produtos, produtoIngredientes, ingredientes } from "@/db/schema";
+import { ajustarEstoqueProduzido } from "./produtos";
 
 export type ItemPlano = typeof planoProducaoItens.$inferSelect;
 
@@ -91,10 +92,7 @@ export async function marcarConcluido(itemId: number, quantidadeProduzida: numbe
     .where(eq(planoProducaoItens.id, itemId));
 
   // O que foi produzido entra no estoque de produto pronto.
-  await db
-    .update(produtos)
-    .set({ estoqueProduzido: sql`${produtos.estoqueProduzido} + ${quantidadeProduzida}` })
-    .where(eq(produtos.id, item.produtoId));
+  await ajustarEstoqueProduzido(item.produtoId, quantidadeProduzida);
 }
 
 export async function reabrirItem(itemId: number) {

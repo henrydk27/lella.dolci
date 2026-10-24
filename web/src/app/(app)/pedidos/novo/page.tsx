@@ -10,7 +10,7 @@ export default async function NovoPedidoPage() {
   return (
     <Cartao titulo="Novo pedido" className="max-w-xl">
       <NovoPedidoForm
-        produtos={listaProdutos.map((p) => ({ id: p.id, nome: p.nome, preco: p.preco }))}
+        produtos={listaProdutos.map((p) => ({ id: p.id, nome: p.nome, preco: p.preco, estoqueProduzido: p.estoqueProduzido }))}
         nomesClientes={listaClientes.map((c) => c.nome)}
       />
     </Cartao>

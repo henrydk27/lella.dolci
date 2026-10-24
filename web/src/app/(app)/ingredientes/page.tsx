@@ -16,15 +16,19 @@ export default async function IngredientesPage() {
       </div>
 
       <Tabela>
-        <TabelaCabecalho colunas={["Nome", "Unidade", "Estoque", "Preço unit.", ""]} />
+        <TabelaCabecalho colunas={["Nome", "Quantidade", "Produto", "Preço/g", ""]} />
         <tbody>
           {itens.length === 0 && <TabelaVazia colunas={5} texto="Nenhum ingrediente cadastrado." />}
           {itens.map((i) => (
             <TabelaLinha key={i.id}>
               <TabelaCelula>{i.nome}</TabelaCelula>
-              <TabelaCelula>{i.unidade}</TabelaCelula>
               <TabelaCelula>{i.quantidadeEstoque}</TabelaCelula>
-              <TabelaCelula>R$ {i.precoUnitario.toFixed(2)}</TabelaCelula>
+              <TabelaCelula>
+                {i.gramasPorEmbalagem > 0
+                  ? `${i.gramasPorEmbalagem}g por R$ ${i.precoEmbalagem.toFixed(2)}`
+                  : "-"}
+              </TabelaCelula>
+              <TabelaCelula>R$ {i.precoUnitario.toFixed(4)}</TabelaCelula>
               <TabelaCelula>
                 <Link href={`/ingredientes/${i.id}`} className="font-bold text-terracota hover:underline">
                   Editar

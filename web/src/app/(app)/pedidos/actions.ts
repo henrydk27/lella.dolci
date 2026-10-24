@@ -13,7 +13,8 @@ function texto(formData: FormData, campo: string): string | null {
 
 export async function criarPedido(formData: FormData) {
   const nomeCliente = String(formData.get("cliente") ?? "").trim();
-  if (!nomeCliente) throw new Error("Informe o cliente.");
+  const tipo = String(formData.get("tipo") ?? "encomenda");
+  if (!nomeCliente && tipo !== "pronta_entrega") throw new Error("Informe o cliente.");
 
   const itensBrutos = JSON.parse(String(formData.get("itensJson") ?? "[]")) as {
     produtoId: number;
@@ -31,8 +32,7 @@ export async function criarPedido(formData: FormData) {
   }
   if (itens.length === 0) throw new Error("Nenhum item valido informado.");
 
-  const clienteId = await clientes.buscarOuCriarClientePorNome(nomeCliente);
-  const tipo = String(formData.get("tipo") ?? "encomenda");
+  const clienteId = nomeCliente ? await clientes.buscarOuCriarClientePorNome(nomeCliente) : null;
   const pedidoId = await pedidos.criarPedido(
     clienteId,
     itens,
@@ -68,11 +68,19 @@ export async function atualizarDadosPedido(id: number, formData: FormData) {
 
   revalidatePath("/pedidos");
   revalidatePath(`/pedidos/${id}`);
+  redirect("/pedidos");
 }
 
 export async function removerPedido(id: number) {
+  const { pedido, itens } = await pedidos.buscarPedido(id);
+  if (pedido?.tipo === "pronta_entrega") {
+    for (const item of itens) {
+      await produtos.ajustarEstoqueProduzido(item.produtoId, item.quantidade);
+    }
+  }
   await pedidos.removerPedido(id);
   revalidatePath("/pedidos");
+  revalidatePath("/produtos");
   redirect("/pedidos");
 }
 
@@ -82,19 +90,46 @@ export async function adicionarItemPedido(pedidoId: number, formData: FormData) 
   const produto = await produtos.buscarProduto(produtoId);
   if (produto && quantidade > 0) {
     await pedidos.adicionarItemPedido(pedidoId, produtoId, quantidade, produto.preco);
+
+    const { pedido } = await pedidos.buscarPedido(pedidoId);
+    if (pedido?.tipo === "pronta_entrega") {
+      await produtos.ajustarEstoqueProduzido(produtoId, -quantidade);
+    }
   }
   revalidatePath(`/pedidos/${pedidoId}`);
+  revalidatePath("/produtos");
 }
 
 export async function atualizarQuantidadeItem(pedidoId: number, itemId: number, formData: FormData) {
   const quantidade = Number(formData.get("quantidade"));
   if (quantidade > 0) {
+    const itemAtual = await pedidos.buscarItemPedido(itemId);
     await pedidos.atualizarQuantidadeItem(itemId, quantidade);
+
+    if (itemAtual) {
+      const { pedido } = await pedidos.buscarPedido(pedidoId);
+      if (pedido?.tipo === "pronta_entrega") {
+        // So a diferenca entra/sai do estoque, nao a quantidade inteira de novo.
+        const diferenca = itemAtual.quantidade - quantidade;
+        await produtos.ajustarEstoqueProduzido(itemAtual.produtoId, diferenca);
+      }
+    }
   }
   revalidatePath(`/pedidos/${pedidoId}`);
+  revalidatePath("/produtos");
 }
 
 export async function removerItemPedido(pedidoId: number, itemId: number) {
+  const itemAtual = await pedidos.buscarItemPedido(itemId);
   await pedidos.removerItemPedido(itemId);
+
+  if (itemAtual) {
+    const { pedido } = await pedidos.buscarPedido(pedidoId);
+    if (pedido?.tipo === "pronta_entrega") {
+      // Item removido do pedido volta pro estoque pronto.
+      await produtos.ajustarEstoqueProduzido(itemAtual.produtoId, itemAtual.quantidade);
+    }
+  }
   revalidatePath(`/pedidos/${pedidoId}`);
+  revalidatePath("/produtos");
 }

@@ -13,9 +13,9 @@ function numero(formData: FormData, campo: string): number {
 export async function criarIngrediente(formData: FormData) {
   await ingredientes.adicionarIngrediente({
     nome: String(formData.get("nome") ?? "").trim(),
-    unidade: String(formData.get("unidade") ?? "").trim(),
     quantidadeEstoque: numero(formData, "quantidadeEstoque"),
-    precoUnitario: numero(formData, "precoUnitario"),
+    gramasPorEmbalagem: numero(formData, "gramasPorEmbalagem"),
+    precoEmbalagem: numero(formData, "precoEmbalagem"),
   });
   revalidatePath("/ingredientes");
   redirect("/ingredientes");
@@ -24,9 +24,9 @@ export async function criarIngrediente(formData: FormData) {
 export async function atualizarIngrediente(id: number, formData: FormData) {
   await ingredientes.atualizarIngrediente(id, {
     nome: String(formData.get("nome") ?? "").trim(),
-    unidade: String(formData.get("unidade") ?? "").trim(),
     quantidadeEstoque: numero(formData, "quantidadeEstoque"),
-    precoUnitario: numero(formData, "precoUnitario"),
+    gramasPorEmbalagem: numero(formData, "gramasPorEmbalagem"),
+    precoEmbalagem: numero(formData, "precoEmbalagem"),
   });
   revalidatePath("/ingredientes");
   redirect("/ingredientes");

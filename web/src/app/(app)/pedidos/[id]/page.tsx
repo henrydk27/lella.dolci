@@ -26,6 +26,8 @@ export default async function DetalhePedidoPage({ params }: { params: Promise<{ 
   if (!pedido) notFound();
 
   const todosProdutos = await produtos.listarProdutos();
+  const produtosParaAdicionar =
+    pedido.tipo === "pronta_entrega" ? todosProdutos.filter((p) => p.estoqueProduzido > 0) : todosProdutos;
   const total = itens.reduce((soma, i) => soma + i.quantidade * i.precoUnitario, 0);
 
   const salvar = atualizarDadosPedido.bind(null, pedidoId);
@@ -110,26 +112,37 @@ export default async function DetalhePedidoPage({ params }: { params: Promise<{ 
         </Tabela>
         <p className="mt-3 text-right font-titulo text-lg text-terracota-vibrante">Total: R$ {total.toFixed(2)}</p>
 
-        <form action={addItem} className="mt-4 flex items-end gap-2 border-t border-borda pt-4">
-          <CampoSelect
-            name="produtoId"
-            className="flex-1"
-            opcoes={todosProdutos.map((p) => ({ valor: String(p.id), texto: `${p.nome} (R$ ${p.preco.toFixed(2)})` }))}
-          />
-          <input
-            type="number"
-            name="quantidade"
-            min={1}
-            defaultValue={1}
-            className="w-20 rounded-full border border-borda px-3 py-2 text-sm"
-          />
-          <button
-            type="submit"
-            className="rounded-full bg-terracota px-4 py-2 text-sm font-bold text-[#FFF9F0] hover:bg-terracota-hover"
-          >
-            + Adicionar item
-          </button>
-        </form>
+        {pedido.tipo === "pronta_entrega" && produtosParaAdicionar.length === 0 ? (
+          <p className="mt-4 border-t border-borda pt-4 text-sm text-texto-suave">
+            Nenhum produto com estoque pronto no momento. Produza algo no Planejador primeiro.
+          </p>
+        ) : (
+          <form action={addItem} className="mt-4 flex items-end gap-2 border-t border-borda pt-4">
+            <CampoSelect
+              name="produtoId"
+              className="flex-1"
+              opcoes={produtosParaAdicionar.map((p) => ({
+                valor: String(p.id),
+                texto: `${p.nome} (R$ ${p.preco.toFixed(2)})${
+                  pedido.tipo === "pronta_entrega" ? ` — ${p.estoqueProduzido} em estoque` : ""
+                }`,
+              }))}
+            />
+            <input
+              type="number"
+              name="quantidade"
+              min={1}
+              defaultValue={1}
+              className="w-20 rounded-full border border-borda px-3 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              className="rounded-full bg-terracota px-4 py-2 text-sm font-bold text-[#FFF9F0] hover:bg-terracota-hover"
+            >
+              + Adicionar item
+            </button>
+          </form>
+        )}
       </Cartao>
     </div>
   );

@@ -1,7 +1,12 @@
+import Link from "next/link";
 import { Cartao } from "@/components/ui/Cartao";
 import { Tabela, TabelaCabecalho, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import * as pedidos from "@/lib/pedidos";
 import * as clientes from "@/lib/clientes";
+
+function dataBr(isoData: string) {
+  return isoData.split("-").reverse().join("/");
+}
 
 function CartaoIndicador({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe: string }) {
   return (
@@ -30,6 +35,7 @@ export default async function DashboardPage() {
   const clienteTop = await clientes.clienteMaiorGasto(inicioMes);
 
   const categorias = await pedidos.vendasPorCategoria(anoAtual);
+  const encomendasFuturas = await pedidos.encomendasFuturasPendentes();
 
   return (
     <div className="space-y-8">
@@ -48,6 +54,33 @@ export default async function DashboardPage() {
             detalhe={maisVendido ? `${maisVendido.totalVendido} unidade(s) vendida(s)` : "sem vendas ainda"}
           />
         </div>
+      </div>
+
+      <div>
+        <h2 className="mb-4 font-titulo text-xl text-terracota-vibrante">
+          Encomendas futuras pendentes {encomendasFuturas.length > 0 && `(${encomendasFuturas.length})`}
+        </h2>
+        <Tabela>
+          <TabelaCabecalho colunas={["Cliente", "Data de entrega", "Status", "Total", ""]} />
+          <tbody>
+            {encomendasFuturas.length === 0 && (
+              <TabelaVazia colunas={5} texto="Nenhuma encomenda pendente com entrega futura." />
+            )}
+            {encomendasFuturas.map((p) => (
+              <TabelaLinha key={p.id}>
+                <TabelaCelula>{p.clienteNome ?? "-"}</TabelaCelula>
+                <TabelaCelula>{p.dataEntrega ? dataBr(p.dataEntrega) : "-"}</TabelaCelula>
+                <TabelaCelula>{p.status}</TabelaCelula>
+                <TabelaCelula>R$ {p.total.toFixed(2)}</TabelaCelula>
+                <TabelaCelula>
+                  <Link href={`/pedidos/${p.id}`} className="font-bold text-terracota hover:underline">
+                    Ver
+                  </Link>
+                </TabelaCelula>
+              </TabelaLinha>
+            ))}
+          </tbody>
+        </Tabela>
       </div>
 
       <div>

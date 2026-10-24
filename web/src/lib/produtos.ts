@@ -1,4 +1,4 @@
-import { eq, asc, isNotNull } from "drizzle-orm";
+import { eq, asc, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { produtos, produtoIngredientes, produtoEmbalagens, ingredientes, embalagens } from "@/db/schema";
 import { calcularCustoUnitario } from "./embalagens";
@@ -57,6 +57,15 @@ export async function atualizarProduto(
 
 export async function removerProduto(id: number) {
   await db.delete(produtos).where(eq(produtos.id, id));
+}
+
+// Usado pela venda de pronta entrega (desconta) e pelo planejador de
+// producao (soma). delta negativo desconta, positivo acrescenta.
+export async function ajustarEstoqueProduzido(produtoId: number, delta: number) {
+  await db
+    .update(produtos)
+    .set({ estoqueProduzido: sql`${produtos.estoqueProduzido} + ${delta}` })
+    .where(eq(produtos.id, produtoId));
 }
 
 export async function listarIngredientesDoProduto(produtoId: number) {

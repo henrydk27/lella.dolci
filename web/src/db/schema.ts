@@ -5,6 +5,11 @@ export const ingredientes = sqliteTable("ingredientes", {
   nome: text("nome").notNull().unique(),
   unidade: text("unidade").notNull(),
   quantidadeEstoque: real("quantidade_estoque").notNull().default(0),
+  // O que o usuario realmente sabe na hora da compra: tamanho e preco da
+  // embalagem. O preco por grama (precoUnitario) e sempre calculado a partir
+  // desses dois, nunca digitado direto.
+  gramasPorEmbalagem: real("gramas_por_embalagem").notNull().default(0),
+  precoEmbalagem: real("preco_embalagem").notNull().default(0),
   precoUnitario: real("preco_unitario").notNull().default(0),
 });
 

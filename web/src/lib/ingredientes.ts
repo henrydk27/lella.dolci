@@ -13,21 +13,45 @@ export async function buscarIngrediente(id: number): Promise<Ingrediente | undef
   return rows[0];
 }
 
-export async function adicionarIngrediente(dados: {
+export function calcularPrecoPorGrama(gramasPorEmbalagem: number, precoEmbalagem: number): number {
+  if (!gramasPorEmbalagem) return 0;
+  return precoEmbalagem / gramasPorEmbalagem;
+}
+
+interface DadosIngrediente {
   nome: string;
-  unidade: string;
   quantidadeEstoque: number;
-  precoUnitario: number;
-}) {
-  const [row] = await db.insert(ingredientes).values(dados).returning();
+  gramasPorEmbalagem: number;
+  precoEmbalagem: number;
+}
+
+export async function adicionarIngrediente(dados: DadosIngrediente) {
+  const [row] = await db
+    .insert(ingredientes)
+    .values({
+      nome: dados.nome,
+      unidade: "g",
+      quantidadeEstoque: dados.quantidadeEstoque,
+      gramasPorEmbalagem: dados.gramasPorEmbalagem,
+      precoEmbalagem: dados.precoEmbalagem,
+      precoUnitario: calcularPrecoPorGrama(dados.gramasPorEmbalagem, dados.precoEmbalagem),
+    })
+    .returning();
   return row;
 }
 
-export async function atualizarIngrediente(
-  id: number,
-  dados: { nome: string; unidade: string; quantidadeEstoque: number; precoUnitario: number }
-) {
-  await db.update(ingredientes).set(dados).where(eq(ingredientes.id, id));
+export async function atualizarIngrediente(id: number, dados: DadosIngrediente) {
+  await db
+    .update(ingredientes)
+    .set({
+      nome: dados.nome,
+      unidade: "g",
+      quantidadeEstoque: dados.quantidadeEstoque,
+      gramasPorEmbalagem: dados.gramasPorEmbalagem,
+      precoEmbalagem: dados.precoEmbalagem,
+      precoUnitario: calcularPrecoPorGrama(dados.gramasPorEmbalagem, dados.precoEmbalagem),
+    })
+    .where(eq(ingredientes.id, id));
 }
 
 export async function removerIngrediente(id: number) {
