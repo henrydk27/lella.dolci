@@ -95,6 +95,13 @@ export const gastos = sqliteTable("gastos", {
   valor: real("valor").notNull().default(0),
 });
 
+export const tentativasLogin = sqliteTable("tentativas_login", {
+  ip: text("ip").primaryKey(),
+  tentativas: integer("tentativas").notNull().default(0),
+  bloqueadoAte: text("bloqueado_ate"),
+  ultimaTentativa: text("ultima_tentativa").notNull(),
+});
+
 export const STATUS_PEDIDO = ["pendente", "pronto", "entregue", "pago"] as const;
 export type StatusPedido = (typeof STATUS_PEDIDO)[number];
 

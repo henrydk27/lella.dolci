@@ -29,6 +29,13 @@
       "when": 1791061510596,
       "tag": "0003_volatile_franklin_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792870165873,
+      "tag": "0004_chunky_harry_osborn",
+      "breakpoints": true
     }
   ]
 }
