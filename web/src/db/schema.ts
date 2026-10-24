@@ -16,8 +16,10 @@ export const ingredientes = sqliteTable("ingredientes", {
 export const embalagens = sqliteTable("embalagens", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nome: text("nome").notNull().unique(),
+  categoria: text("categoria"),
   custoTotal: real("custo_total").notNull().default(0),
   rendimento: integer("rendimento").notNull().default(1),
+  observacoes: text("observacoes"),
 });
 
 export const produtos = sqliteTable("produtos", {
@@ -66,6 +68,8 @@ export const pedidos = sqliteTable("pedidos", {
   formaPagamento: text("forma_pagamento"),
   status: text("status").notNull().default("pendente"),
   observacoes: text("observacoes"),
+  caixa: text("caixa"),
+  taxaEntrega: real("taxa_entrega").notNull().default(0),
 });
 
 export const pedidoItens = sqliteTable("pedido_itens", {

@@ -33,14 +33,16 @@ export async function criarPedido(formData: FormData) {
   if (itens.length === 0) throw new Error("Nenhum item valido informado.");
 
   const clienteId = nomeCliente ? await clientes.buscarOuCriarClientePorNome(nomeCliente) : null;
-  const pedidoId = await pedidos.criarPedido(
+  const pedidoId = await pedidos.criarPedido({
     clienteId,
     itens,
-    String(formData.get("observacoes") ?? "").trim(),
-    texto(formData, "dataEntrega"),
-    texto(formData, "formaPagamento"),
-    tipo
-  );
+    observacoes: String(formData.get("observacoes") ?? "").trim(),
+    dataEntrega: texto(formData, "dataEntrega"),
+    formaPagamento: texto(formData, "formaPagamento"),
+    tipo,
+    caixa: texto(formData, "caixa"),
+    taxaEntrega: parseFloat(String(formData.get("taxaEntrega") ?? "0").replace(",", ".")) || 0,
+  });
 
   revalidatePath("/pedidos");
   redirect(`/pedidos/${pedidoId}`);
@@ -57,7 +59,9 @@ export async function atualizarDadosPedido(id: number, formData: FormData) {
     id,
     texto(formData, "dataEntrega"),
     texto(formData, "formaPagamento"),
-    String(formData.get("observacoes") ?? "").trim()
+    String(formData.get("observacoes") ?? "").trim(),
+    texto(formData, "caixa"),
+    parseFloat(String(formData.get("taxaEntrega") ?? "0").replace(",", ".")) || 0
   );
 
   const status = String(formData.get("status") ?? "");

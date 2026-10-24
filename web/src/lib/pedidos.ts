@@ -17,24 +17,43 @@ function nowIso(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-export async function criarPedido(
-  clienteId: number | null,
-  itens: ItemPedidoEntrada[],
+export interface NovoPedidoEntrada {
+  clienteId: number | null;
+  itens: ItemPedidoEntrada[];
+  observacoes?: string;
+  dataEntrega?: string | null;
+  formaPagamento?: string | null;
+  tipo?: string;
+  caixa?: string | null;
+  taxaEntrega?: number;
+  status?: string;
+  dataPedido?: string;
+}
+
+export async function criarPedido({
+  clienteId,
+  itens,
   observacoes = "",
-  dataEntrega: string | null = null,
-  formaPagamento: string | null = null,
-  tipo: string = "encomenda"
-) {
+  dataEntrega = null,
+  formaPagamento = null,
+  tipo = "encomenda",
+  caixa = null,
+  taxaEntrega = 0,
+  status = "pendente",
+  dataPedido = nowIso(),
+}: NovoPedidoEntrada) {
   const [pedido] = await db
     .insert(pedidos)
     .values({
       clienteId,
       tipo,
-      dataPedido: nowIso(),
+      dataPedido,
       dataEntrega,
       formaPagamento,
-      status: "pendente",
+      status,
       observacoes,
+      caixa,
+      taxaEntrega,
     })
     .returning();
 
@@ -67,6 +86,8 @@ const selectPedidos = () =>
       formaPagamento: pedidos.formaPagamento,
       status: pedidos.status,
       observacoes: pedidos.observacoes,
+      caixa: pedidos.caixa,
+      taxaEntrega: pedidos.taxaEntrega,
     })
     .from(pedidos)
     .leftJoin(clientes, eq(clientes.id, pedidos.clienteId));
@@ -109,9 +130,14 @@ export async function atualizarDadosPedido(
   id: number,
   dataEntrega: string | null,
   formaPagamento: string | null,
-  observacoes: string | null
+  observacoes: string | null,
+  caixa: string | null = null,
+  taxaEntrega: number = 0
 ) {
-  await db.update(pedidos).set({ dataEntrega, formaPagamento, observacoes }).where(eq(pedidos.id, id));
+  await db
+    .update(pedidos)
+    .set({ dataEntrega, formaPagamento, observacoes, caixa, taxaEntrega })
+    .where(eq(pedidos.id, id));
 }
 
 export async function removerPedido(id: number) {
@@ -136,8 +162,9 @@ export async function adicionarItemPedido(pedidoId: number, produtoId: number, q
 }
 
 export async function totalPedido(id: number): Promise<number> {
-  const { itens } = await buscarPedido(id);
-  return itens.reduce((total, i) => total + i.quantidade * i.precoUnitario, 0);
+  const { pedido, itens } = await buscarPedido(id);
+  const totalItens = itens.reduce((total, i) => total + i.quantidade * i.precoUnitario, 0);
+  return totalItens + (pedido?.taxaEntrega ?? 0);
 }
 
 export async function historicoVendas(dataInicio?: string, dataFim?: string, status?: string, tipo?: string) {

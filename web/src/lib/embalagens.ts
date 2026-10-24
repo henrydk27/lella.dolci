@@ -13,15 +13,20 @@ export async function buscarEmbalagem(id: number): Promise<Embalagem | undefined
   return rows[0];
 }
 
-export async function adicionarEmbalagem(dados: { nome: string; custoTotal: number; rendimento: number }) {
+interface DadosEmbalagem {
+  nome: string;
+  custoTotal: number;
+  rendimento: number;
+  categoria?: string | null;
+  observacoes?: string | null;
+}
+
+export async function adicionarEmbalagem(dados: DadosEmbalagem) {
   const [row] = await db.insert(embalagens).values(dados).returning();
   return row;
 }
 
-export async function atualizarEmbalagem(
-  id: number,
-  dados: { nome: string; custoTotal: number; rendimento: number }
-) {
+export async function atualizarEmbalagem(id: number, dados: DadosEmbalagem) {
   await db.update(embalagens).set(dados).where(eq(embalagens.id, id));
 }
 

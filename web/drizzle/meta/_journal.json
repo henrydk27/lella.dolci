@@ -36,6 +36,13 @@
       "when": 1792870165873,
       "tag": "0004_chunky_harry_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792871715126,
+      "tag": "0005_fantastic_namor",
+      "breakpoints": true
     }
   ]
 }

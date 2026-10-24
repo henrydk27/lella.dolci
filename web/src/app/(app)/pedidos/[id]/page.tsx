@@ -28,7 +28,8 @@ export default async function DetalhePedidoPage({ params }: { params: Promise<{ 
   const todosProdutos = await produtos.listarProdutos();
   const produtosParaAdicionar =
     pedido.tipo === "pronta_entrega" ? todosProdutos.filter((p) => p.estoqueProduzido > 0) : todosProdutos;
-  const total = itens.reduce((soma, i) => soma + i.quantidade * i.precoUnitario, 0);
+  const totalItens = itens.reduce((soma, i) => soma + i.quantidade * i.precoUnitario, 0);
+  const total = totalItens + pedido.taxaEntrega;
 
   const salvar = atualizarDadosPedido.bind(null, pedidoId);
   const remover = removerPedido.bind(null, pedidoId);
@@ -63,6 +64,16 @@ export default async function DetalhePedidoPage({ params }: { params: Promise<{ 
             defaultValue={pedido.status}
             opcoes={pedidos.STATUS_PEDIDO.map((s) => ({ valor: s, texto: s }))}
           />
+          <div className="grid grid-cols-2 gap-3">
+            <Campo rotulo="Caixa" name="caixa" defaultValue={pedido.caixa ?? ""} />
+            <Campo
+              rotulo="Taxa de entrega"
+              name="taxaEntrega"
+              type="number"
+              step="any"
+              defaultValue={pedido.taxaEntrega}
+            />
+          </div>
           <Campo rotulo="Observações" name="observacoes" defaultValue={pedido.observacoes ?? ""} />
           <Botao type="submit">Salvar dados do pedido</Botao>
         </form>

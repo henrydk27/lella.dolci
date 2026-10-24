@@ -123,6 +123,11 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <Campo rotulo="Caixa" name="caixa" placeholder="Ex: Caixa 6 doces" />
+        <Campo rotulo="Taxa de entrega" name="taxaEntrega" type="number" step="any" defaultValue={0} />
+      </div>
+
       <Campo rotulo="Observações" name="observacoes" placeholder="Opcional" />
 
       <div className="rounded-2xl border border-borda bg-painel-claro p-4">

@@ -16,12 +16,13 @@ export default async function EmbalagensPage() {
       </div>
 
       <Tabela>
-        <TabelaCabecalho colunas={["Nome", "Custo total", "Rendimento", "Custo unit.", ""]} />
+        <TabelaCabecalho colunas={["Nome", "Categoria", "Custo total", "Rendimento", "Custo unit.", ""]} />
         <tbody>
-          {itens.length === 0 && <TabelaVazia colunas={5} texto="Nenhuma embalagem cadastrada." />}
+          {itens.length === 0 && <TabelaVazia colunas={6} texto="Nenhuma embalagem cadastrada." />}
           {itens.map((e) => (
             <TabelaLinha key={e.id}>
               <TabelaCelula>{e.nome}</TabelaCelula>
+              <TabelaCelula>{e.categoria ?? "-"}</TabelaCelula>
               <TabelaCelula>R$ {e.custoTotal.toFixed(2)}</TabelaCelula>
               <TabelaCelula>{e.rendimento}</TabelaCelula>
               <TabelaCelula>R$ {embalagens.calcularCustoUnitario(e).toFixed(2)}</TabelaCelula>
