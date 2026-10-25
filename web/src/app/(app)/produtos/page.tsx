@@ -3,6 +3,7 @@ import * as produtos from "@/lib/produtos";
 import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { Botao } from "@/components/ui/Botao";
 import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
+import { BarraBusca, correspondeBusca } from "@/components/ui/BarraBusca";
 
 type Produto = Awaited<ReturnType<typeof produtos.listarProdutos>>[number];
 
@@ -35,14 +36,15 @@ function valorOrdenavel(p: Produto, campo: string): string | number {
 export default async function ProdutosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ordenar?: string; dir?: string }>;
+  searchParams: Promise<{ ordenar?: string; dir?: string; buscar?: string }>;
 }) {
-  const { ordenar, dir } = await searchParams;
-  const itens = await produtos.listarProdutos();
+  const { ordenar, dir, buscar } = await searchParams;
+  const todos = await produtos.listarProdutos();
+  const itens = todos.filter((p) => correspondeBusca(buscar ?? "", p.nome, p.categoria, p.descricao));
 
   const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "nome", CAMPOS_VALIDOS);
   const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
-  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/produtos", {}, campo, campoAtivo, direcao);
+  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/produtos", { buscar }, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -52,6 +54,12 @@ export default async function ProdutosPage({
           <Botao>+ Novo produto</Botao>
         </Link>
       </div>
+
+      <BarraBusca
+        buscar={buscar}
+        placeholder="Buscar por nome, categoria ou descrição"
+        camposOcultos={{ ordenar, dir }}
+      />
 
       <Tabela>
         <TabelaCabecalhoOrdenavel

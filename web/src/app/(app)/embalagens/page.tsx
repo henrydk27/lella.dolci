@@ -3,6 +3,7 @@ import * as embalagens from "@/lib/embalagens";
 import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { Botao } from "@/components/ui/Botao";
 import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
+import { BarraBusca, correspondeBusca } from "@/components/ui/BarraBusca";
 
 type Embalagem = Awaited<ReturnType<typeof embalagens.listarEmbalagens>>[number];
 
@@ -35,14 +36,15 @@ function valorOrdenavel(e: Embalagem, campo: string): string | number {
 export default async function EmbalagensPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ordenar?: string; dir?: string }>;
+  searchParams: Promise<{ ordenar?: string; dir?: string; buscar?: string }>;
 }) {
-  const { ordenar, dir } = await searchParams;
-  const itens = await embalagens.listarEmbalagens();
+  const { ordenar, dir, buscar } = await searchParams;
+  const todos = await embalagens.listarEmbalagens();
+  const itens = todos.filter((e) => correspondeBusca(buscar ?? "", e.nome, e.categoria));
 
   const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "nome", CAMPOS_VALIDOS);
   const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
-  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/embalagens", {}, campo, campoAtivo, direcao);
+  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/embalagens", { buscar }, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -52,6 +54,8 @@ export default async function EmbalagensPage({
           <Botao>+ Nova embalagem</Botao>
         </Link>
       </div>
+
+      <BarraBusca buscar={buscar} placeholder="Buscar por nome ou categoria" camposOcultos={{ ordenar, dir }} />
 
       <Tabela>
         <TabelaCabecalhoOrdenavel

@@ -3,6 +3,7 @@ import * as clientes from "@/lib/clientes";
 import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { Botao } from "@/components/ui/Botao";
 import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
+import { BarraBusca, correspondeBusca } from "@/components/ui/BarraBusca";
 
 const CORES_STATUS: Record<string, string> = {
   novo: "text-salvia",
@@ -39,14 +40,15 @@ function valorOrdenavel(info: ClienteComStatus, campo: string): string | number 
 export default async function ClientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ordenar?: string; dir?: string }>;
+  searchParams: Promise<{ ordenar?: string; dir?: string; buscar?: string }>;
 }) {
-  const { ordenar, dir } = await searchParams;
-  const itens = await clientes.listarClientesComStatus();
+  const { ordenar, dir, buscar } = await searchParams;
+  const todos = await clientes.listarClientesComStatus();
+  const itens = todos.filter((info) => correspondeBusca(buscar ?? "", info.cliente.nome, info.status));
 
   const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "nome", CAMPOS_VALIDOS);
   const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
-  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/clientes", {}, campo, campoAtivo, direcao);
+  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/clientes", { buscar }, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -56,6 +58,8 @@ export default async function ClientesPage({
           <Botao>+ Novo cliente</Botao>
         </Link>
       </div>
+
+      <BarraBusca buscar={buscar} placeholder="Buscar por nome ou status" camposOcultos={{ ordenar, dir }} />
 
       <Tabela>
         <TabelaCabecalhoOrdenavel

@@ -3,6 +3,7 @@ import * as pedidos from "@/lib/pedidos";
 import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { Botao } from "@/components/ui/Botao";
 import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
+import { BarraBusca, correspondeBusca } from "@/components/ui/BarraBusca";
 
 function dataBr(iso: string) {
   return iso.slice(0, 10).split("-").reverse().join("/");
@@ -56,15 +57,19 @@ function valorOrdenavel(p: Pedido, campo: string): string | number {
 export default async function PedidosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tipo?: string; ordenar?: string; dir?: string }>;
+  searchParams: Promise<{ tipo?: string; ordenar?: string; dir?: string; buscar?: string }>;
 }) {
-  const { tipo, ordenar, dir } = await searchParams;
+  const { tipo, ordenar, dir, buscar } = await searchParams;
   const todos = await pedidos.listarPedidos();
-  const itens = tipo ? todos.filter((p) => p.tipo === tipo) : todos;
+  const filtradosPorTipo = tipo ? todos.filter((p) => p.tipo === tipo) : todos;
+  const itens = filtradosPorTipo.filter((p) =>
+    correspondeBusca(buscar ?? "", String(p.id), p.clienteNome, ROTULOS_TIPO[p.tipo] ?? p.tipo, p.formaPagamento, p.status)
+  );
 
   const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "data", CAMPOS_VALIDOS);
   const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
-  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/pedidos", { tipo }, campo, campoAtivo, direcao);
+  const hrefOrdenar = (campo: string) =>
+    gerarHrefOrdenar("/pedidos", { tipo, buscar }, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -90,6 +95,12 @@ export default async function PedidosPage({
           </Link>
         ))}
       </div>
+
+      <BarraBusca
+        buscar={buscar}
+        placeholder="Buscar por cliente, tipo, pagamento ou status"
+        camposOcultos={{ tipo, ordenar, dir }}
+      />
 
       <Tabela>
         <TabelaCabecalhoOrdenavel

@@ -4,6 +4,7 @@ import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazi
 import { Botao } from "@/components/ui/Botao";
 import { Cartao } from "@/components/ui/Cartao";
 import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
+import { BarraBusca, correspondeBusca } from "@/components/ui/BarraBusca";
 
 type Gasto = Awaited<ReturnType<typeof gastos.listarGastos>>[number];
 
@@ -36,17 +37,18 @@ function valorOrdenavel(g: Gasto, campo: string): string | number {
 export default async function GastosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ordenar?: string; dir?: string }>;
+  searchParams: Promise<{ ordenar?: string; dir?: string; buscar?: string }>;
 }) {
-  const { ordenar, dir } = await searchParams;
-  const itens = await gastos.listarGastos();
+  const { ordenar, dir, buscar } = await searchParams;
+  const todos = await gastos.listarGastos();
+  const itens = todos.filter((g) => correspondeBusca(buscar ?? "", g.nome, g.categoria, g.tipoPagamento));
   const total = await gastos.totalGastos();
   const porCategoria = await gastos.resumoPorCategoria();
   const porTipo = await gastos.resumoPorTipoPagamento();
 
   const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "data", CAMPOS_VALIDOS);
   const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
-  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/gastos", {}, campo, campoAtivo, direcao);
+  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/gastos", { buscar }, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -56,6 +58,8 @@ export default async function GastosPage({
           <Botao>+ Novo gasto</Botao>
         </Link>
       </div>
+
+      <BarraBusca buscar={buscar} placeholder="Buscar por nome, categoria ou pagamento" camposOcultos={{ ordenar, dir }} />
 
       <Tabela>
         <TabelaCabecalhoOrdenavel

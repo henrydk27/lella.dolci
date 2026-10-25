@@ -3,6 +3,7 @@ import * as ingredientes from "@/lib/ingredientes";
 import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { Botao } from "@/components/ui/Botao";
 import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
+import { BarraBusca, correspondeBusca } from "@/components/ui/BarraBusca";
 
 type Ingrediente = Awaited<ReturnType<typeof ingredientes.listarIngredientes>>[number];
 
@@ -35,14 +36,15 @@ function valorOrdenavel(i: Ingrediente, campo: string): string | number {
 export default async function IngredientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ordenar?: string; dir?: string }>;
+  searchParams: Promise<{ ordenar?: string; dir?: string; buscar?: string }>;
 }) {
-  const { ordenar, dir } = await searchParams;
-  const itens = await ingredientes.listarIngredientes();
+  const { ordenar, dir, buscar } = await searchParams;
+  const todos = await ingredientes.listarIngredientes();
+  const itens = todos.filter((i) => correspondeBusca(buscar ?? "", i.nome));
 
   const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "nome", CAMPOS_VALIDOS);
   const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
-  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/ingredientes", {}, campo, campoAtivo, direcao);
+  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/ingredientes", { buscar }, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -52,6 +54,8 @@ export default async function IngredientesPage({
           <Botao>+ Novo ingrediente</Botao>
         </Link>
       </div>
+
+      <BarraBusca buscar={buscar} placeholder="Buscar por nome" camposOcultos={{ ordenar, dir }} />
 
       <Tabela>
         <TabelaCabecalhoOrdenavel

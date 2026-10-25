@@ -4,6 +4,7 @@ import { CampoSelect } from "@/components/ui/Campo";
 import { Botao } from "@/components/ui/Botao";
 import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
+import { correspondeBusca } from "@/components/ui/BarraBusca";
 
 function dataBr(iso: string) {
   return iso.slice(0, 10).split("-").reverse().join("/");
@@ -48,23 +49,33 @@ function valorOrdenavel(p: RegistroComTotal, campo: string): string | number {
 export default async function HistoricoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ inicio?: string; fim?: string; status?: string; tipo?: string; ordenar?: string; dir?: string }>;
+  searchParams: Promise<{
+    inicio?: string;
+    fim?: string;
+    status?: string;
+    tipo?: string;
+    ordenar?: string;
+    dir?: string;
+    buscar?: string;
+  }>;
 }) {
-  const { inicio, fim, status, tipo, ordenar, dir } = await searchParams;
+  const { inicio, fim, status, tipo, ordenar, dir, buscar } = await searchParams;
 
   const registros = await pedidos.historicoVendas(inicio, fim, status, tipo);
   const totaisItens = await pedidos.totaisPorPedidoIds(registros.map((p) => p.id));
-  const registrosComTotal = registros.map((p) => ({
-    ...p,
-    total: (totaisItens.get(p.id) ?? 0) + p.taxaEntrega,
-  }));
+  const registrosComTotal = registros
+    .map((p) => ({
+      ...p,
+      total: (totaisItens.get(p.id) ?? 0) + p.taxaEntrega,
+    }))
+    .filter((p) => correspondeBusca(buscar ?? "", String(p.id), p.clienteNome, ROTULOS_TIPO[p.tipo] ?? p.tipo, p.status));
   const resumo = await pedidos.resumoVendas(inicio, fim, tipo);
   const resumoPorTipo = await pedidos.resumoPorTipo(inicio, fim);
 
   const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "data", CAMPOS_VALIDOS);
   const registrosOrdenados = ordenarLista(registrosComTotal, campoAtivo, direcao, valorOrdenavel);
   const hrefOrdenar = (campo: string) =>
-    gerarHrefOrdenar("/historico", { inicio, fim, status, tipo }, campo, campoAtivo, direcao);
+    gerarHrefOrdenar("/historico", { inicio, fim, status, tipo, buscar }, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -105,6 +116,16 @@ export default async function HistoricoPage({
               ...pedidos.TIPOS_PEDIDO.map((t) => ({ valor: t, texto: ROTULOS_TIPO[t] ?? t })),
             ]}
           />
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-texto">Buscar</span>
+            <input
+              type="text"
+              name="buscar"
+              defaultValue={buscar ?? ""}
+              placeholder="Cliente, tipo ou status"
+              className="rounded-full border border-borda bg-painel-claro px-4 py-2 text-sm"
+            />
+          </label>
           <Botao type="submit">Filtrar</Botao>
           <a href="/historico">
             <Botao type="button" variante="fantasma">
