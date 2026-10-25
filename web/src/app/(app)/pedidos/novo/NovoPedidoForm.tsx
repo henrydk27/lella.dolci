@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { criarPedido } from "../actions";
 import { Campo, CampoSelect } from "@/components/ui/Campo";
 import { Botao } from "@/components/ui/Botao";
+import { Cartao } from "@/components/ui/Cartao";
 
 type Produto = { id: number; nome: string; preco: number; estoqueProduzido: number };
 
@@ -152,13 +153,15 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
   const total = todosOsItens.reduce((soma, i) => soma + i.quantidade * i.precoUnitario, 0);
 
   return (
-    <form action={criarPedido} className="space-y-4">
+    <form action={criarPedido} className="flex flex-col items-start gap-6 lg:flex-row">
       <input
         type="hidden"
         name="itensJson"
         value={JSON.stringify(todosOsItens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade })))}
       />
+      <input type="hidden" name="caixa" value={caixaValor} />
 
+      <Cartao titulo="Novo pedido" className="w-full space-y-4 lg:max-w-xl">
       <input type="hidden" name="tipo" value={tipo} />
       <div>
         <span className="mb-1 block text-xs font-semibold text-texto">Tipo de pedido</span>
@@ -206,93 +209,22 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
         />
       </div>
 
-      <input type="hidden" name="caixa" value={caixaValor} />
-      <div className={caixaValor ? "grid grid-cols-2 gap-4 items-start" : ""}>
-        <div className="space-y-4">
-          <div>
-            <span className="mb-1 block text-xs font-semibold text-texto">Caixa</span>
-            <select
-              value={caixaValor}
-              onChange={(e) => selecionarCaixa(e.target.value)}
-              className="w-full rounded-full border border-borda bg-painel-claro px-4 py-2 text-sm"
-            >
-              {OPCOES_CAIXA.map((o) => (
-                <option key={o} value={o}>
-                  {o || "-"}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Campo rotulo="Taxa de entrega" name="taxaEntrega" type="number" step="any" defaultValue={0} />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <span className="mb-1 block text-xs font-semibold text-texto">Caixa</span>
+          <select
+            value={caixaValor}
+            onChange={(e) => selecionarCaixa(e.target.value)}
+            className="w-full rounded-full border border-borda bg-painel-claro px-4 py-2 text-sm"
+          >
+            {OPCOES_CAIXA.map((o) => (
+              <option key={o} value={o}>
+                {o || "-"}
+              </option>
+            ))}
+          </select>
         </div>
-
-        {caixaValor && (
-          <div className="rounded-2xl border border-borda bg-painel-claro p-4">
-            <p className="mb-2 text-sm font-bold text-terracota-vibrante">Monte a caixa</p>
-
-            {brigadeiros.length === 0 ? (
-              <p className="text-sm text-texto-suave">
-                Nenhum sabor de brigadeiro disponível{prontaEntrega ? " em estoque" : ""}.
-              </p>
-            ) : (
-              <>
-                <div className={`mb-3 grid gap-2 ${slots.length === 6 ? "grid-cols-3" : "grid-cols-2"}`}>
-                  {slots.map((produtoId, indice) => {
-                    const produto = brigadeiros.find((p) => p.id === produtoId);
-                    return (
-                      <button
-                        key={indice}
-                        type="button"
-                        onClick={() => produtoId !== null && removerSaborDaCaixa(indice)}
-                        title={produto ? "Remover" : undefined}
-                        className={`flex aspect-square items-center justify-center rounded-full p-1 text-center text-xs font-bold ${
-                          produto
-                            ? "bg-terracota text-[#FFF9F0]"
-                            : "border border-dashed border-borda text-texto-suave"
-                        }`}
-                      >
-                        {produto ? produto.nome.replace(/^brigadeiro\s*/i, "") || "Brigadeiro" : "vazio"}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-end gap-2">
-                  <select
-                    value={saborSelecionado}
-                    onChange={(e) => setSaborSelecionado(Number(e.target.value))}
-                    className="flex-1 rounded-full border border-borda bg-white px-3 py-2 text-sm"
-                  >
-                    {brigadeiros.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nome}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={adicionarSaborNaCaixa}
-                    disabled={!slots.some((s) => s === null)}
-                    className="rounded-full bg-terracota px-4 py-2 text-sm font-bold text-[#FFF9F0] hover:bg-terracota-hover disabled:opacity-50"
-                  >
-                    + Adicionar
-                  </button>
-                </div>
-
-                {erroCaixa && <p className="mt-2 text-sm font-bold text-alerta">{erroCaixa}</p>}
-
-                <p className="mt-2 text-sm text-texto-suave">
-                  {slots.filter((s) => s !== null).length}/{slots.length} preenchidos
-                </p>
-                {caixaIncompleta && (
-                  <p className="mt-1 text-sm font-bold text-alerta">
-                    Preencha todos os espaços da caixa para finalizar o pedido.
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        )}
+        <Campo rotulo="Taxa de entrega" name="taxaEntrega" type="number" step="any" defaultValue={0} />
       </div>
 
       <Campo rotulo="Observações" name="observacoes" placeholder="Opcional" />
@@ -379,6 +311,73 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
       >
         Finalizar pedido
       </Botao>
+      </Cartao>
+
+      {caixaValor && (
+        <Cartao titulo="Monte a caixa" className="w-full lg:max-w-sm">
+          {brigadeiros.length === 0 ? (
+            <p className="text-sm text-texto-suave">
+              Nenhum sabor de brigadeiro disponível{prontaEntrega ? " em estoque" : ""}.
+            </p>
+          ) : (
+            <>
+              <div className={`mb-3 grid gap-3 ${slots.length === 6 ? "grid-cols-3" : "grid-cols-2"}`}>
+                {slots.map((produtoId, indice) => {
+                  const produto = brigadeiros.find((p) => p.id === produtoId);
+                  return (
+                    <button
+                      key={indice}
+                      type="button"
+                      onClick={() => produtoId !== null && removerSaborDaCaixa(indice)}
+                      title={produto ? "Remover" : undefined}
+                      className={`flex aspect-square items-center justify-center rounded-full p-2 text-center text-xs font-bold ${
+                        produto
+                          ? "bg-terracota text-[#FFF9F0]"
+                          : "border border-dashed border-borda text-texto-suave"
+                      }`}
+                    >
+                      {produto ? produto.nome.replace(/^brigadeiro\s*/i, "") || "Brigadeiro" : "vazio"}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-end gap-2">
+                <select
+                  value={saborSelecionado}
+                  onChange={(e) => setSaborSelecionado(Number(e.target.value))}
+                  className="flex-1 rounded-full border border-borda bg-white px-3 py-2 text-sm"
+                >
+                  {brigadeiros.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={adicionarSaborNaCaixa}
+                  disabled={!slots.some((s) => s === null)}
+                  className="rounded-full bg-terracota px-4 py-2 text-sm font-bold text-[#FFF9F0] hover:bg-terracota-hover disabled:opacity-50"
+                >
+                  + Adicionar
+                </button>
+              </div>
+
+              {erroCaixa && <p className="mt-2 text-sm font-bold text-alerta">{erroCaixa}</p>}
+
+              <p className="mt-2 text-sm text-texto-suave">
+                {slots.filter((s) => s !== null).length}/{slots.length} preenchidos
+              </p>
+              {caixaIncompleta && (
+                <p className="mt-1 text-sm font-bold text-alerta">
+                  Preencha todos os espaços da caixa para finalizar o pedido.
+                </p>
+              )}
+            </>
+          )}
+        </Cartao>
+      )}
     </form>
   );
 }
