@@ -1,7 +1,8 @@
 import Link from "next/link";
 import * as pedidos from "@/lib/pedidos";
-import { Tabela, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
+import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { Botao } from "@/components/ui/Botao";
+import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
 
 function dataBr(iso: string) {
   return iso.slice(0, 10).split("-").reverse().join("/");
@@ -29,6 +30,7 @@ const COLUNAS_ORDENAVEIS: { campo: string; rotulo: string }[] = [
   { campo: "pagamento", rotulo: "Pagamento" },
   { campo: "status", rotulo: "Status" },
 ];
+const CAMPOS_VALIDOS = COLUNAS_ORDENAVEIS.map((c) => c.campo);
 
 function valorOrdenavel(p: Pedido, campo: string): string | number {
   switch (campo) {
@@ -60,25 +62,9 @@ export default async function PedidosPage({
   const todos = await pedidos.listarPedidos();
   const itens = tipo ? todos.filter((p) => p.tipo === tipo) : todos;
 
-  const campoAtivo = COLUNAS_ORDENAVEIS.some((c) => c.campo === ordenar) ? ordenar! : "data";
-  const direcao = dir === "asc" ? "asc" : "desc";
-
-  const itensOrdenados = [...itens].sort((a, b) => {
-    const va = valorOrdenavel(a, campoAtivo);
-    const vb = valorOrdenavel(b, campoAtivo);
-    if (va < vb) return direcao === "asc" ? -1 : 1;
-    if (va > vb) return direcao === "asc" ? 1 : -1;
-    return 0;
-  });
-
-  function hrefOrdenar(campo: string) {
-    const novaDirecao = campoAtivo === campo && direcao === "asc" ? "desc" : "asc";
-    const params = new URLSearchParams();
-    if (tipo) params.set("tipo", tipo);
-    params.set("ordenar", campo);
-    params.set("dir", novaDirecao);
-    return `/pedidos?${params.toString()}`;
-  }
+  const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "data", CAMPOS_VALIDOS);
+  const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
+  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/pedidos", { tipo }, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -106,19 +92,13 @@ export default async function PedidosPage({
       </div>
 
       <Tabela>
-        <thead className="bg-painel">
-          <tr>
-            {COLUNAS_ORDENAVEIS.map((c) => (
-              <th key={c.campo} className="whitespace-nowrap px-4 py-3 font-bold text-terracota-vibrante">
-                <Link href={hrefOrdenar(c.campo)} className="flex items-center gap-1 hover:underline">
-                  {c.rotulo}
-                  {campoAtivo === c.campo && <span>{direcao === "asc" ? "▲" : "▼"}</span>}
-                </Link>
-              </th>
-            ))}
-            <th className="whitespace-nowrap px-4 py-3 font-bold text-terracota-vibrante"></th>
-          </tr>
-        </thead>
+        <TabelaCabecalhoOrdenavel
+          colunas={COLUNAS_ORDENAVEIS}
+          campoAtivo={campoAtivo}
+          direcao={direcao}
+          gerarHref={hrefOrdenar}
+          extras={[""]}
+        />
         <tbody>
           {itensOrdenados.length === 0 && <TabelaVazia colunas={8} texto="Nenhum pedido cadastrado." />}
           {itensOrdenados.map((p) => (

@@ -1,4 +1,6 @@
 import { ReactNode } from "react";
+import Link from "next/link";
+import type { Direcao } from "@/lib/ordenacao";
 
 export function Tabela({ children }: { children: ReactNode }) {
   return (
@@ -15,6 +17,42 @@ export function TabelaCabecalho({ colunas }: { colunas: string[] }) {
         {colunas.map((c) => (
           <th key={c} className="whitespace-nowrap px-4 py-3 font-bold text-terracota-vibrante">
             {c}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+// Cabecalho com colunas clicaveis que ordenam a tabela via query string
+// (?ordenar=campo&dir=asc|desc), usado em todas as telas de listagem.
+export function TabelaCabecalhoOrdenavel({
+  colunas,
+  campoAtivo,
+  direcao,
+  gerarHref,
+  extras = [],
+}: {
+  colunas: { campo: string; rotulo: string }[];
+  campoAtivo: string;
+  direcao: Direcao;
+  gerarHref: (campo: string) => string;
+  extras?: string[];
+}) {
+  return (
+    <thead className="bg-painel">
+      <tr>
+        {colunas.map((c) => (
+          <th key={c.campo} className="whitespace-nowrap px-4 py-3 font-bold text-terracota-vibrante">
+            <Link href={gerarHref(c.campo)} className="flex items-center gap-1 hover:underline">
+              {c.rotulo}
+              {campoAtivo === c.campo && <span>{direcao === "asc" ? "▲" : "▼"}</span>}
+            </Link>
+          </th>
+        ))}
+        {extras.map((e, i) => (
+          <th key={i} className="whitespace-nowrap px-4 py-3 font-bold text-terracota-vibrante">
+            {e}
           </th>
         ))}
       </tr>

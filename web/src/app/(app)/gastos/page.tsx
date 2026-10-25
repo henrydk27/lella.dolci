@@ -1,14 +1,52 @@
 import Link from "next/link";
 import * as gastos from "@/lib/gastos";
-import { Tabela, TabelaCabecalho, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
+import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { Botao } from "@/components/ui/Botao";
 import { Cartao } from "@/components/ui/Cartao";
+import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
 
-export default async function GastosPage() {
+type Gasto = Awaited<ReturnType<typeof gastos.listarGastos>>[number];
+
+const COLUNAS_ORDENAVEIS: { campo: string; rotulo: string }[] = [
+  { campo: "nome", rotulo: "Nome" },
+  { campo: "data", rotulo: "Data" },
+  { campo: "pagamento", rotulo: "Pagamento" },
+  { campo: "categoria", rotulo: "Categoria" },
+  { campo: "valor", rotulo: "Valor" },
+];
+const CAMPOS_VALIDOS = COLUNAS_ORDENAVEIS.map((c) => c.campo);
+
+function valorOrdenavel(g: Gasto, campo: string): string | number {
+  switch (campo) {
+    case "nome":
+      return g.nome.toLowerCase();
+    case "data":
+      return g.data;
+    case "pagamento":
+      return (g.tipoPagamento ?? "").toLowerCase();
+    case "categoria":
+      return (g.categoria ?? "").toLowerCase();
+    case "valor":
+      return g.valor;
+    default:
+      return "";
+  }
+}
+
+export default async function GastosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ordenar?: string; dir?: string }>;
+}) {
+  const { ordenar, dir } = await searchParams;
   const itens = await gastos.listarGastos();
   const total = await gastos.totalGastos();
   const porCategoria = await gastos.resumoPorCategoria();
   const porTipo = await gastos.resumoPorTipoPagamento();
+
+  const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "data", CAMPOS_VALIDOS);
+  const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
+  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/gastos", {}, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -20,10 +58,16 @@ export default async function GastosPage() {
       </div>
 
       <Tabela>
-        <TabelaCabecalho colunas={["Nome", "Data", "Pagamento", "Categoria", "Valor", ""]} />
+        <TabelaCabecalhoOrdenavel
+          colunas={COLUNAS_ORDENAVEIS}
+          campoAtivo={campoAtivo}
+          direcao={direcao}
+          gerarHref={hrefOrdenar}
+          extras={[""]}
+        />
         <tbody>
-          {itens.length === 0 && <TabelaVazia colunas={6} texto="Nenhum gasto cadastrado." />}
-          {itens.map((g) => (
+          {itensOrdenados.length === 0 && <TabelaVazia colunas={6} texto="Nenhum gasto cadastrado." />}
+          {itensOrdenados.map((g) => (
             <TabelaLinha key={g.id}>
               <TabelaCelula>{g.nome}</TabelaCelula>
               <TabelaCelula>{g.data.split("-").reverse().join("/")}</TabelaCelula>

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import * as clientes from "@/lib/clientes";
-import { Tabela, TabelaCabecalho, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
+import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { Botao } from "@/components/ui/Botao";
+import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
 
 const CORES_STATUS: Record<string, string> = {
   novo: "text-salvia",
@@ -10,8 +11,42 @@ const CORES_STATUS: Record<string, string> = {
   inativo: "text-alerta",
 };
 
-export default async function ClientesPage() {
+type ClienteComStatus = Awaited<ReturnType<typeof clientes.listarClientesComStatus>>[number];
+
+const COLUNAS_ORDENAVEIS: { campo: string; rotulo: string }[] = [
+  { campo: "nome", rotulo: "Nome" },
+  { campo: "status", rotulo: "Status" },
+  { campo: "totalGasto", rotulo: "Total gasto" },
+  { campo: "ultimaCompra", rotulo: "Última compra" },
+];
+const CAMPOS_VALIDOS = COLUNAS_ORDENAVEIS.map((c) => c.campo);
+
+function valorOrdenavel(info: ClienteComStatus, campo: string): string | number {
+  switch (campo) {
+    case "nome":
+      return info.cliente.nome.toLowerCase();
+    case "status":
+      return info.status;
+    case "totalGasto":
+      return info.totalGasto;
+    case "ultimaCompra":
+      return info.ultimaCompra ?? "";
+    default:
+      return "";
+  }
+}
+
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ordenar?: string; dir?: string }>;
+}) {
+  const { ordenar, dir } = await searchParams;
   const itens = await clientes.listarClientesComStatus();
+
+  const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "nome", CAMPOS_VALIDOS);
+  const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
+  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/clientes", {}, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -23,10 +58,16 @@ export default async function ClientesPage() {
       </div>
 
       <Tabela>
-        <TabelaCabecalho colunas={["Nome", "Status", "Total gasto", "Última compra", ""]} />
+        <TabelaCabecalhoOrdenavel
+          colunas={COLUNAS_ORDENAVEIS}
+          campoAtivo={campoAtivo}
+          direcao={direcao}
+          gerarHref={hrefOrdenar}
+          extras={[""]}
+        />
         <tbody>
-          {itens.length === 0 && <TabelaVazia colunas={5} texto="Nenhum cliente cadastrado." />}
-          {itens.map((info) => (
+          {itensOrdenados.length === 0 && <TabelaVazia colunas={5} texto="Nenhum cliente cadastrado." />}
+          {itensOrdenados.map((info) => (
             <TabelaLinha key={info.cliente.id}>
               <TabelaCelula>{info.cliente.nome}</TabelaCelula>
               <TabelaCelula>

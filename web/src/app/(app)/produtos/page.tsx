@@ -1,10 +1,48 @@
 import Link from "next/link";
 import * as produtos from "@/lib/produtos";
-import { Tabela, TabelaCabecalho, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
+import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { Botao } from "@/components/ui/Botao";
+import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
 
-export default async function ProdutosPage() {
+type Produto = Awaited<ReturnType<typeof produtos.listarProdutos>>[number];
+
+const COLUNAS_ORDENAVEIS: { campo: string; rotulo: string }[] = [
+  { campo: "nome", rotulo: "Nome" },
+  { campo: "categoria", rotulo: "Categoria" },
+  { campo: "preco", rotulo: "Preço" },
+  { campo: "estoque", rotulo: "Estoque pronto" },
+  { campo: "descricao", rotulo: "Descrição" },
+];
+const CAMPOS_VALIDOS = COLUNAS_ORDENAVEIS.map((c) => c.campo);
+
+function valorOrdenavel(p: Produto, campo: string): string | number {
+  switch (campo) {
+    case "nome":
+      return p.nome.toLowerCase();
+    case "categoria":
+      return (p.categoria ?? "").toLowerCase();
+    case "preco":
+      return p.preco;
+    case "estoque":
+      return p.estoqueProduzido;
+    case "descricao":
+      return (p.descricao ?? "").toLowerCase();
+    default:
+      return "";
+  }
+}
+
+export default async function ProdutosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ordenar?: string; dir?: string }>;
+}) {
+  const { ordenar, dir } = await searchParams;
   const itens = await produtos.listarProdutos();
+
+  const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "nome", CAMPOS_VALIDOS);
+  const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
+  const hrefOrdenar = (campo: string) => gerarHrefOrdenar("/produtos", {}, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -16,10 +54,16 @@ export default async function ProdutosPage() {
       </div>
 
       <Tabela>
-        <TabelaCabecalho colunas={["Nome", "Categoria", "Preço", "Estoque pronto", "Descrição", ""]} />
+        <TabelaCabecalhoOrdenavel
+          colunas={COLUNAS_ORDENAVEIS}
+          campoAtivo={campoAtivo}
+          direcao={direcao}
+          gerarHref={hrefOrdenar}
+          extras={[""]}
+        />
         <tbody>
-          {itens.length === 0 && <TabelaVazia colunas={6} texto="Nenhum produto cadastrado." />}
-          {itens.map((p) => (
+          {itensOrdenados.length === 0 && <TabelaVazia colunas={6} texto="Nenhum produto cadastrado." />}
+          {itensOrdenados.map((p) => (
             <TabelaLinha key={p.id}>
               <TabelaCelula>{p.nome}</TabelaCelula>
               <TabelaCelula>{p.categoria ?? "-"}</TabelaCelula>

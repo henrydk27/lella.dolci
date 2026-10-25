@@ -2,10 +2,11 @@ import * as pedidos from "@/lib/pedidos";
 import { Cartao } from "@/components/ui/Cartao";
 import { CampoSelect } from "@/components/ui/Campo";
 import { Botao } from "@/components/ui/Botao";
-import { Tabela, TabelaCabecalho, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
+import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
+import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
 
 function dataBr(iso: string) {
-  return iso.slice(0, 10).split("-").reverse().join("/") + " " + iso.slice(11, 16);
+  return iso.slice(0, 10).split("-").reverse().join("/");
 }
 
 const ROTULOS_TIPO: Record<string, string> = {
@@ -13,12 +14,43 @@ const ROTULOS_TIPO: Record<string, string> = {
   pronta_entrega: "Pronta entrega",
 };
 
+type RegistroComTotal = { id: number; clienteNome: string | null; tipo: string; dataPedido: string; status: string; total: number };
+
+const COLUNAS_ORDENAVEIS: { campo: string; rotulo: string }[] = [
+  { campo: "id", rotulo: "ID" },
+  { campo: "cliente", rotulo: "Cliente" },
+  { campo: "tipo", rotulo: "Tipo" },
+  { campo: "data", rotulo: "Data" },
+  { campo: "status", rotulo: "Status" },
+  { campo: "total", rotulo: "Total" },
+];
+const CAMPOS_VALIDOS = COLUNAS_ORDENAVEIS.map((c) => c.campo);
+
+function valorOrdenavel(p: RegistroComTotal, campo: string): string | number {
+  switch (campo) {
+    case "id":
+      return p.id;
+    case "cliente":
+      return (p.clienteNome ?? "").toLowerCase();
+    case "tipo":
+      return ROTULOS_TIPO[p.tipo] ?? p.tipo;
+    case "data":
+      return p.dataPedido;
+    case "status":
+      return p.status;
+    case "total":
+      return p.total;
+    default:
+      return "";
+  }
+}
+
 export default async function HistoricoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ inicio?: string; fim?: string; status?: string; tipo?: string }>;
+  searchParams: Promise<{ inicio?: string; fim?: string; status?: string; tipo?: string; ordenar?: string; dir?: string }>;
 }) {
-  const { inicio, fim, status, tipo } = await searchParams;
+  const { inicio, fim, status, tipo, ordenar, dir } = await searchParams;
 
   const registros = await pedidos.historicoVendas(inicio, fim, status, tipo);
   const totaisItens = await pedidos.totaisPorPedidoIds(registros.map((p) => p.id));
@@ -28,6 +60,11 @@ export default async function HistoricoPage({
   }));
   const resumo = await pedidos.resumoVendas(inicio, fim, tipo);
   const resumoPorTipo = await pedidos.resumoPorTipo(inicio, fim);
+
+  const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "data", CAMPOS_VALIDOS);
+  const registrosOrdenados = ordenarLista(registrosComTotal, campoAtivo, direcao, valorOrdenavel);
+  const hrefOrdenar = (campo: string) =>
+    gerarHrefOrdenar("/historico", { inicio, fim, status, tipo }, campo, campoAtivo, direcao);
 
   return (
     <div className="space-y-6">
@@ -87,10 +124,15 @@ export default async function HistoricoPage({
       </div>
 
       <Tabela>
-        <TabelaCabecalho colunas={["ID", "Cliente", "Tipo", "Data", "Status", "Total"]} />
+        <TabelaCabecalhoOrdenavel
+          colunas={COLUNAS_ORDENAVEIS}
+          campoAtivo={campoAtivo}
+          direcao={direcao}
+          gerarHref={hrefOrdenar}
+        />
         <tbody>
-          {registrosComTotal.length === 0 && <TabelaVazia colunas={6} texto="Nenhum registro encontrado." />}
-          {registrosComTotal.map((p) => (
+          {registrosOrdenados.length === 0 && <TabelaVazia colunas={6} texto="Nenhum registro encontrado." />}
+          {registrosOrdenados.map((p) => (
             <TabelaLinha key={p.id}>
               <TabelaCelula>#{p.id}</TabelaCelula>
               <TabelaCelula>{p.clienteNome ?? "-"}</TabelaCelula>
