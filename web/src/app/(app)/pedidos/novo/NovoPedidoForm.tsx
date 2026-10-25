@@ -23,6 +23,10 @@ function tamanhoDaCaixa(valor: string): number {
   return 0;
 }
 
+// Preco fixo da caixa fechada, independente dos sabores escolhidos
+// (e' assim que sempre foi cobrado, visto no historico de vendas).
+const PRECO_CAIXA: Record<number, number> = { 4: 10, 6: 14 };
+
 export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[]; nomesClientes: string[] }) {
   const [itens, setItens] = useState<{ produtoId: number; nome: string; quantidade: number; precoUnitario: number }[]>(
     []
@@ -135,8 +139,15 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
     setSlots(copia);
   }
 
-  // Cada sabor escolhido na caixa vira um item do pedido, igual a adicionar manualmente.
+  const tamanhoCaixa = tamanhoDaCaixa(caixaValor);
+  const precoTotalCaixa = PRECO_CAIXA[tamanhoCaixa] ?? 0;
+
+  // Cada sabor escolhido na caixa vira um item do pedido, igual a adicionar
+  // manualmente, mas rateando o preco fixo da caixa entre os espacos: o
+  // valor cobrado e' sempre o da caixa fechada, nao a soma do preco avulso
+  // de cada sabor.
   const itensDaCaixa = useMemo(() => {
+    const precoPorUnidade = tamanhoCaixa > 0 ? Math.round((precoTotalCaixa / tamanhoCaixa) * 100) / 100 : 0;
     const contagem = new Map<number, number>();
     for (const produtoId of slots) {
       if (produtoId === null) continue;
@@ -144,9 +155,9 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
     }
     return [...contagem.entries()].map(([produtoId, quantidade]) => {
       const produto = brigadeiros.find((p) => p.id === produtoId)!;
-      return { produtoId, nome: produto.nome, quantidade, precoUnitario: produto.preco };
+      return { produtoId, nome: produto.nome, quantidade, precoUnitario: precoPorUnidade };
     });
-  }, [slots, brigadeiros]);
+  }, [slots, brigadeiros, tamanhoCaixa, precoTotalCaixa]);
 
   const caixaIncompleta = slots.length > 0 && slots.some((s) => s === null);
   const todosOsItens = [...itens, ...itensDaCaixa];
@@ -315,6 +326,10 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
 
       {caixaValor && (
         <Cartao titulo="Monte a caixa" className="w-full lg:max-w-sm">
+          <p className="mb-3 text-sm text-texto-suave">
+            Preço da caixa fechada: <strong className="text-terracota-vibrante">R$ {precoTotalCaixa.toFixed(2)}</strong>
+            , não importa a combinação de sabores.
+          </p>
           {brigadeiros.length === 0 ? (
             <p className="text-sm text-texto-suave">
               Nenhum sabor de brigadeiro disponível{prontaEntrega ? " em estoque" : ""}.
