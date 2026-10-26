@@ -128,27 +128,28 @@ export default async function DetalhePedidoPage({ params }: { params: Promise<{ 
             Nenhum produto com estoque pronto no momento. Produza algo no Planejador primeiro.
           </p>
         ) : (
-          <form action={addItem} className="mt-4 flex items-end gap-2 border-t border-borda pt-4">
-            <CampoSelect
-              name="produtoId"
-              className="flex-1"
-              opcoes={produtosParaAdicionar.map((p) => ({
-                valor: String(p.id),
-                texto: `${p.nome} (R$ ${p.preco.toFixed(2)})${
-                  pedido.tipo === "pronta_entrega" ? ` — ${p.estoqueProduzido} em estoque` : ""
-                }`,
-              }))}
-            />
+          <form action={addItem} className="mt-4 flex flex-col gap-2 border-t border-borda pt-4 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
+              <CampoSelect
+                name="produtoId"
+                opcoes={produtosParaAdicionar.map((p) => ({
+                  valor: String(p.id),
+                  texto: `${p.nome} (R$ ${p.preco.toFixed(2)})${
+                    pedido.tipo === "pronta_entrega" ? ` — ${p.estoqueProduzido} em estoque` : ""
+                  }`,
+                }))}
+              />
+            </div>
             <input
               type="number"
               name="quantidade"
               min={1}
               defaultValue={1}
-              className="w-20 rounded-full border border-borda px-3 py-2 text-sm"
+              className="w-full rounded-full border border-borda px-3 py-2 text-sm sm:w-20"
             />
             <button
               type="submit"
-              className="rounded-full bg-terracota px-4 py-2 text-sm font-bold text-[#FFF9F0] hover:bg-terracota-hover"
+              className="w-full rounded-full bg-terracota px-4 py-2 text-sm font-bold text-[#FFF9F0] hover:bg-terracota-hover sm:w-auto"
             >
               + Adicionar item
             </button>

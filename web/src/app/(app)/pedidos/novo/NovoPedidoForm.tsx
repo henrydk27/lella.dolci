@@ -251,11 +251,11 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
           </p>
         ) : (
           <>
-            <div className="flex items-end gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <select
                 value={produtoSelecionado}
                 onChange={(e) => setProdutoSelecionado(Number(e.target.value))}
-                className="flex-1 rounded-full border border-borda bg-white px-4 py-2 text-sm"
+                className="min-w-0 flex-1 rounded-full border border-borda bg-white px-4 py-2 text-sm"
               >
                 {produtosDisponiveis.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -269,12 +269,12 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
                 min={1}
                 value={quantidade}
                 onChange={(e) => setQuantidade(Number(e.target.value))}
-                className="w-20 rounded-full border border-borda bg-white px-3 py-2 text-sm"
+                className="w-full rounded-full border border-borda bg-white px-3 py-2 text-sm sm:w-20"
               />
               <button
                 type="button"
                 onClick={adicionarItem}
-                className="rounded-full bg-terracota px-4 py-2 text-sm font-bold text-[#FFF9F0] hover:bg-terracota-hover"
+                className="w-full rounded-full bg-terracota px-4 py-2 text-sm font-bold text-[#FFF9F0] hover:bg-terracota-hover sm:w-auto"
               >
                 + Adicionar
               </button>
@@ -357,11 +357,11 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
                 })}
               </div>
 
-              <div className="flex items-end gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                 <select
                   value={saborSelecionado}
                   onChange={(e) => setSaborSelecionado(Number(e.target.value))}
-                  className="flex-1 rounded-full border border-borda bg-white px-3 py-2 text-sm"
+                  className="min-w-0 flex-1 rounded-full border border-borda bg-white px-3 py-2 text-sm"
                 >
                   {brigadeiros.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -373,7 +373,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
                   type="button"
                   onClick={adicionarSaborNaCaixa}
                   disabled={!slots.some((s) => s === null)}
-                  className="rounded-full bg-terracota px-4 py-2 text-sm font-bold text-[#FFF9F0] hover:bg-terracota-hover disabled:opacity-50"
+                  className="w-full rounded-full bg-terracota px-4 py-2 text-sm font-bold text-[#FFF9F0] hover:bg-terracota-hover disabled:opacity-50 sm:w-auto"
                 >
                   + Adicionar
                 </button>

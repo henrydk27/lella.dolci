@@ -99,14 +99,17 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
               );
             })}
           </ul>
-          <form action={addIngrediente} className="flex items-end gap-2">
-            <CampoSelect
-              name="ingredienteId"
-              opcoes={todosIngredientes.map((i) => ({ valor: String(i.id), texto: `${i.nome} (${i.unidade})` }))}
-              className="flex-1"
-            />
-            <Campo name="quantidade" type="number" step="any" placeholder="Qtd" className="w-24" />
-            <Botao type="submit">+ Adicionar</Botao>
+          <form action={addIngrediente} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
+              <CampoSelect
+                name="ingredienteId"
+                opcoes={todosIngredientes.map((i) => ({ valor: String(i.id), texto: `${i.nome} (${i.unidade})` }))}
+              />
+            </div>
+            <Campo name="quantidade" type="number" step="any" placeholder="Qtd" className="w-full sm:w-24" />
+            <Botao type="submit" className="w-full sm:w-auto">
+              + Adicionar
+            </Botao>
           </form>
         </Cartao>
 
@@ -127,14 +130,14 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
               );
             })}
           </ul>
-          <form action={addEmbalagem} className="flex items-end gap-2">
-            <CampoSelect
-              name="embalagemId"
-              opcoes={todasEmbalagens.map((e) => ({ valor: String(e.id), texto: e.nome }))}
-              className="flex-1"
-            />
-            <Campo name="quantidade" type="number" step="any" defaultValue={1} placeholder="Qtd" className="w-24" />
-            <Botao type="submit">+ Adicionar</Botao>
+          <form action={addEmbalagem} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
+              <CampoSelect name="embalagemId" opcoes={todasEmbalagens.map((e) => ({ valor: String(e.id), texto: e.nome }))} />
+            </div>
+            <Campo name="quantidade" type="number" step="any" defaultValue={1} placeholder="Qtd" className="w-full sm:w-24" />
+            <Botao type="submit" className="w-full sm:w-auto">
+              + Adicionar
+            </Botao>
           </form>
         </Cartao>
       </div>
