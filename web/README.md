@@ -75,6 +75,19 @@ npx drizzle-kit migrate
 
 A cada `git push` na branch principal, a Vercel publica automaticamente uma nova versao.
 
+### Alerta por e-mail de pedidos em aberto (todo dia 14 e 29)
+
+Um cron job da Vercel (configurado em `vercel.json`) chama `/api/alertas/devedores` nesses dois dias do mes, as 9h (horario de Brasilia), e manda um e-mail pro Gmail configurado com a lista de clientes que ainda tem pedido em aberto (nao pago) e o total devido por cada um.
+
+Para habilitar, adicione essas variaveis de ambiente na Vercel (alem das ja listadas acima):
+
+- `GMAIL_USER` = o endereco Gmail que vai enviar (e por padrao tambem recebe) o alerta.
+- `GMAIL_APP_PASSWORD` = uma **senha de app** do Google (nao e a senha normal da conta). Gere em [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) — precisa ter a verificacao em duas etapas ativada na conta Google primeiro.
+- `ALERTA_EMAIL_PARA` (opcional) = se quiser que o alerta va para um endereco diferente de `GMAIL_USER`.
+- `CRON_SECRET` = qualquer string aleatoria (ex: gere com `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`). A Vercel usa esse valor automaticamente pra autenticar a chamada do cron — sem isso, a rota fica aberta pra qualquer um disparar o envio.
+
+Depois de configurar as variaveis, redeploy o projeto (a Vercel so le o `vercel.json` em um novo deploy). Pra testar na hora sem esperar o dia 14/29, acesse `https://seu-projeto.vercel.app/api/alertas/devedores` direto pelo navegador (se `CRON_SECRET` estiver configurado, essa chamada manual sem o header vai retornar 401 — nesse caso, teste com uma ferramenta tipo `curl -H "Authorization: Bearer SEU_CRON_SECRET" https://...`).
+
 ### Alterando o schema depois
 
 Se no futuro adicionar/mudar uma tabela em `src/db/schema.ts`, gere e aplique a migracao antes de fazer deploy:
