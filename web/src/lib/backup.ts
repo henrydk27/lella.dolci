@@ -10,6 +10,7 @@ import {
   pedidoItens,
   produtoIngredientes,
   produtoEmbalagens,
+  planoProducaoItens,
   gastos,
 } from "@/db/schema";
 
@@ -95,6 +96,33 @@ export async function gerarPlanilhaBackup(): Promise<ExcelJS.Buffer> {
       { chave: "observacoes", titulo: "Observações", largura: 30 },
     ],
     todasEmbalagens
+  );
+
+  const linhasPlanejador = await db
+    .select({
+      id: planoProducaoItens.id,
+      data: planoProducaoItens.data,
+      produtoNome: produtos.nome,
+      quantidadePlanejada: planoProducaoItens.quantidadePlanejada,
+      ordem: planoProducaoItens.ordem,
+      concluido: planoProducaoItens.concluido,
+      quantidadeProduzida: planoProducaoItens.quantidadeProduzida,
+    })
+    .from(planoProducaoItens)
+    .innerJoin(produtos, eq(produtos.id, planoProducaoItens.produtoId));
+  adicionarAba(
+    workbook,
+    "Planejador",
+    [
+      { chave: "id", titulo: "ID", largura: 8 },
+      { chave: "data", titulo: "Data", largura: 14 },
+      { chave: "produtoNome", titulo: "Produto", largura: 30 },
+      { chave: "quantidadePlanejada", titulo: "Quantidade planejada", largura: 18 },
+      { chave: "ordem", titulo: "Ordem", largura: 10 },
+      { chave: "concluido", titulo: "Concluído", largura: 12 },
+      { chave: "quantidadeProduzida", titulo: "Quantidade produzida", largura: 18 },
+    ],
+    linhasPlanejador
   );
 
   const linhasPedidos = await db
