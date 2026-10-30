@@ -38,6 +38,14 @@ export function Nav() {
               {item.texto}
             </Link>
           ))}
+          {/* link comum (nao o <Link> do Next): precisa ser uma navegacao de
+              verdade do navegador para o download do arquivo funcionar */}
+          <a
+            href="/api/backup"
+            className="rounded-full px-3 py-1.5 text-sm font-bold text-texto hover:bg-selecao"
+          >
+            Backup
+          </a>
         </nav>
         <form action={sair}>
           <button className="rounded-full border border-borda px-3 py-1.5 text-sm font-bold text-texto hover:bg-selecao">
