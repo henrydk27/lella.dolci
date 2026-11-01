@@ -3,6 +3,7 @@ import { encerrarSessao } from "@/lib/auth";
 
 const ITENS = [
   { href: "/", texto: "Início" },
+  { href: "/dashboard", texto: "Dashboard" },
   { href: "/clientes", texto: "Clientes" },
   { href: "/produtos", texto: "Produtos" },
   { href: "/ingredientes", texto: "Ingredientes" },
@@ -10,6 +11,7 @@ const ITENS = [
   { href: "/planejador", texto: "Planejador" },
   { href: "/pedidos", texto: "Pedidos" },
   { href: "/historico", texto: "Histórico" },
+  { href: "/financeiro", texto: "Financeiro" },
 ];
 
 const SUBMENU_CALCULADORA = [

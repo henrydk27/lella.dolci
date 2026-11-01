@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import * as pedidos from "@/lib/pedidos";
 import * as clientes from "@/lib/clientes";
 import * as produtos from "@/lib/produtos";
+import * as pagamentosLib from "@/lib/pagamentos";
 
 function texto(formData: FormData, campo: string): string | null {
   const valor = String(formData.get(campo) ?? "").trim();
@@ -121,6 +122,20 @@ export async function atualizarQuantidadeItem(pedidoId: number, itemId: number, 
   }
   revalidatePath(`/pedidos/${pedidoId}`);
   revalidatePath("/produtos");
+}
+
+export async function registrarPagamento(pedidoId: number, formData: FormData) {
+  const valor = parseFloat(String(formData.get("valor") ?? "0").replace(",", "."));
+  const data = String(formData.get("data") ?? "").trim();
+  if (valor > 0 && data) {
+    await pagamentosLib.adicionarPagamento(pedidoId, valor, data, texto(formData, "observacoes"));
+  }
+  revalidatePath(`/pedidos/${pedidoId}`);
+}
+
+export async function removerPagamento(pedidoId: number, pagamentoId: number) {
+  await pagamentosLib.removerPagamento(pagamentoId);
+  revalidatePath(`/pedidos/${pedidoId}`);
 }
 
 export async function removerItemPedido(pedidoId: number, itemId: number) {

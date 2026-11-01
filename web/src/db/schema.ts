@@ -114,6 +114,37 @@ export const receitaIngredientes = sqliteTable("receita_ingredientes", {
   gramasUsadas: real("gramas_usadas").notNull(),
 });
 
+// Pagamentos recebidos de um pedido. Um pedido pode ter varios pagamentos
+// (parciais) em datas diferentes - a soma informa quanto ja foi efetivamente
+// recebido, separado de "status" (que continua controlando o fluxo de
+// producao/entrega, sem mudar o comportamento ja existente).
+export const pagamentos = sqliteTable("pagamentos", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  pedidoId: integer("pedido_id").notNull().references(() => pedidos.id, { onDelete: "cascade" }),
+  valor: real("valor").notNull(),
+  data: text("data").notNull(), // AAAA-MM-DD: data real em que o dinheiro entrou
+  observacoes: text("observacoes"),
+});
+
+// Fechamento mensal do Financeiro: congela os valores calculados de um mes
+// para que reajustes futuros de preco de ingrediente, ou pagamentos
+// registrados depois, nao alterem retroativamente um mes ja fechado.
+export const fechamentosMensais = sqliteTable("fechamentos_mensais", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ano: integer("ano").notNull(),
+  mes: integer("mes").notNull(), // 1-12
+  faturamento: real("faturamento").notNull(),
+  custoProdutos: real("custo_produtos").notNull(),
+  lucroGerado: real("lucro_gerado").notNull(),
+  recebido: real("recebido").notNull(),
+  pendente: real("pendente").notNull(),
+  reservaDespesas: real("reserva_despesas").notNull(),
+  reservaFinanceira: real("reserva_financeira").notNull(),
+  funcionariaMae: real("funcionaria_mae").notNull(),
+  proprietaria: real("proprietaria").notNull(),
+  fechadoEm: text("fechado_em").notNull(),
+});
+
 export const tentativasLogin = sqliteTable("tentativas_login", {
   ip: text("ip").primaryKey(),
   tentativas: integer("tentativas").notNull().default(0),

@@ -1,12 +1,15 @@
 import { notFound } from "next/navigation";
 import * as pedidos from "@/lib/pedidos";
 import * as produtos from "@/lib/produtos";
+import * as pagamentosLib from "@/lib/pagamentos";
 import {
   atualizarDadosPedido,
   removerPedido,
   adicionarItemPedido,
   atualizarQuantidadeItem,
   removerItemPedido,
+  registrarPagamento,
+  removerPagamento,
 } from "../actions";
 import { Cartao } from "@/components/ui/Cartao";
 import { Campo, CampoSelect } from "@/components/ui/Campo";
@@ -31,9 +34,14 @@ export default async function DetalhePedidoPage({ params }: { params: Promise<{ 
   const totalItens = itens.reduce((soma, i) => soma + i.quantidade * i.precoUnitario, 0);
   const total = totalItens + pedido.taxaEntrega;
 
+  const listaPagamentos = await pagamentosLib.listarPagamentosDoPedido(pedidoId);
+  const totalRecebido = listaPagamentos.reduce((soma, p) => soma + p.valor, 0);
+  const saldoPendente = total - totalRecebido;
+
   const salvar = atualizarDadosPedido.bind(null, pedidoId);
   const remover = removerPedido.bind(null, pedidoId);
   const addItem = adicionarItemPedido.bind(null, pedidoId);
+  const addPagamento = registrarPagamento.bind(null, pedidoId);
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -155,6 +163,49 @@ export default async function DetalhePedidoPage({ params }: { params: Promise<{ 
             </button>
           </form>
         )}
+      </Cartao>
+
+      <Cartao titulo="Pagamentos recebidos" className="lg:col-span-2">
+        <p className="mb-3 text-sm text-texto-suave">
+          Registre aqui cada valor efetivamente recebido, na data real em que caiu — mesmo que em parcelas, em meses
+          diferentes da venda. Isso alimenta o <strong>Financeiro</strong> separado do status de produção/entrega
+          acima.
+        </p>
+        <ul className="mb-4 space-y-2 text-sm">
+          {listaPagamentos.length === 0 && <li className="text-texto-suave">Nenhum pagamento registrado ainda.</li>}
+          {listaPagamentos.map((p) => {
+            const removerEste = removerPagamento.bind(null, pedidoId, p.id);
+            return (
+              <li key={p.id} className="flex items-center justify-between gap-2 rounded-xl bg-painel-claro px-3 py-2">
+                <span>
+                  {p.data.split("-").reverse().join("/")} — R$ {p.valor.toFixed(2)}
+                  {p.observacoes ? ` (${p.observacoes})` : ""}
+                </span>
+                <form action={removerEste}>
+                  <button type="submit" className="text-xs font-bold text-alerta hover:underline">
+                    remover
+                  </button>
+                </form>
+              </li>
+            );
+          })}
+        </ul>
+        <form action={addPagamento} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <Campo rotulo="Valor recebido" name="valor" type="number" step="any" className="w-full sm:w-32" required />
+          <Campo rotulo="Data" name="data" type="date" className="w-full sm:w-40" required />
+          <Campo rotulo="Observações (opcional)" name="observacoes" className="w-full sm:flex-1" />
+          <Botao type="submit" className="w-full sm:w-auto">
+            + Registrar
+          </Botao>
+        </form>
+        <p className="mt-3 text-sm">
+          <span className="text-texto-suave">Total recebido: </span>
+          <strong className="text-salvia">R$ {totalRecebido.toFixed(2)}</strong>
+          <span className="text-texto-suave"> · Saldo pendente: </span>
+          <strong className={saldoPendente > 0.009 ? "text-alerta" : "text-salvia"}>
+            R$ {Math.max(saldoPendente, 0).toFixed(2)}
+          </strong>
+        </p>
       </Cartao>
     </div>
   );
