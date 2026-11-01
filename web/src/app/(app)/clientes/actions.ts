@@ -39,3 +39,19 @@ export async function removerCliente(id: number) {
   revalidatePath("/clientes");
   redirect("/clientes");
 }
+
+export async function mesclarClientesAction(formData: FormData) {
+  const principalId = Number(formData.get("principalId"));
+  const duplicadoIds = formData
+    .getAll("duplicadoIds")
+    .map((v) => Number(v))
+    .filter((n) => Number.isFinite(n) && n !== principalId);
+
+  if (!principalId || duplicadoIds.length === 0) {
+    throw new Error("Selecione um cliente principal e ao menos um cliente duplicado.");
+  }
+
+  await clientes.mesclarClientes(principalId, duplicadoIds);
+  revalidatePath("/clientes");
+  redirect("/clientes");
+}

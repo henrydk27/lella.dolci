@@ -1,4 +1,4 @@
-import { eq, sql, and, gte, lte, desc, asc } from "drizzle-orm";
+import { eq, sql, and, gte, lte, desc, asc, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { clientes, pedidos, pedidoItens, produtos } from "@/db/schema";
 
@@ -56,6 +56,47 @@ export async function atualizarCliente(
 
 export async function removerCliente(id: number) {
   await db.delete(clientes).where(eq(clientes.id, id));
+}
+
+const CAMPOS_TEXTO_MESCLAVEIS = [
+  "telefone",
+  "email",
+  "endereco",
+  "aniversario",
+  "comoConheceu",
+] as const;
+
+// Junta um ou mais clientes duplicados dentro do cliente principal: todos os
+// pedidos dos duplicados passam a apontar pro principal, os campos vazios do
+// principal sao preenchidos com o que existir nos duplicados (sem sobrescrever
+// o que o principal ja tinha) e as notas de todos sao concatenadas. No final
+// os clientes duplicados sao removidos.
+export async function mesclarClientes(principalId: number, duplicadoIds: number[]) {
+  const idsDuplicados = Array.from(new Set(duplicadoIds)).filter((id) => id !== principalId);
+  if (idsDuplicados.length === 0) return;
+
+  const principal = await buscarCliente(principalId);
+  if (!principal) throw new Error("Cliente principal nao encontrado.");
+
+  const duplicados = await db.select().from(clientes).where(inArray(clientes.id, idsDuplicados));
+
+  const dadosMesclados: Record<string, string | null> = {};
+  for (const campo of CAMPOS_TEXTO_MESCLAVEIS) {
+    const valorExistente = principal[campo];
+    const valorDeDuplicado = duplicados.map((d) => d[campo]).find((v) => v && v.trim() !== "");
+    dadosMesclados[campo] = valorExistente && valorExistente.trim() !== "" ? valorExistente : valorDeDuplicado ?? null;
+  }
+
+  const todasAsNotas = [principal, ...duplicados]
+    .map((c) => c.notas)
+    .filter((n): n is string => !!n && n.trim() !== "");
+  const notas = todasAsNotas.length > 0 ? Array.from(new Set(todasAsNotas)).join("\n") : null;
+
+  await db.batch([
+    db.update(pedidos).set({ clienteId: principalId }).where(inArray(pedidos.clienteId, idsDuplicados)),
+    db.update(clientes).set({ ...dadosMesclados, notas }).where(eq(clientes.id, principalId)),
+    db.delete(clientes).where(inArray(clientes.id, idsDuplicados)),
+  ]);
 }
 
 async function estatisticasCliente(clienteId: number): Promise<EstatisticasCliente> {
