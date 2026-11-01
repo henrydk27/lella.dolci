@@ -90,15 +90,6 @@ export const planoProducaoItens = sqliteTable("plano_producao_itens", {
   quantidadeProduzida: real("quantidade_produzida"),
 });
 
-export const gastos = sqliteTable("gastos", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  nome: text("nome").notNull(),
-  data: text("data").notNull(),
-  tipoPagamento: text("tipo_pagamento"),
-  categoria: text("categoria"),
-  valor: real("valor").notNull().default(0),
-});
-
 export const tentativasLogin = sqliteTable("tentativas_login", {
   ip: text("ip").primaryKey(),
   tentativas: integer("tentativas").notNull().default(0),
