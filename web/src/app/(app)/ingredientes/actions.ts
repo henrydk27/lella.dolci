@@ -22,13 +22,16 @@ export async function criarIngrediente(formData: FormData) {
 }
 
 export async function atualizarIngrediente(id: number, formData: FormData) {
+  const atual = await ingredientes.buscarIngrediente(id);
   await ingredientes.atualizarIngrediente(id, {
     nome: String(formData.get("nome") ?? "").trim(),
     quantidadeEstoque: numero(formData, "quantidadeEstoque"),
     gramasPorEmbalagem: numero(formData, "gramasPorEmbalagem"),
     precoEmbalagem: numero(formData, "precoEmbalagem"),
+    unidade: atual?.unidade,
   });
   revalidatePath("/ingredientes");
+  revalidatePath("/calculadora/ingredientes");
   redirect("/ingredientes");
 }
 

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import * as ingredientes from "@/lib/ingredientes";
 import { atualizarIngrediente, removerIngrediente, ajustarEstoqueIngrediente } from "../actions";
 import { Cartao } from "@/components/ui/Cartao";
@@ -14,15 +15,18 @@ export default async function EditarIngredientePage({ params }: { params: Promis
   const remover = removerIngrediente.bind(null, ingrediente.id);
   const ajustar = ajustarEstoqueIngrediente.bind(null, ingrediente.id);
 
-  const unidadeAntiga = ingrediente.unidade !== "g";
+  const porUnidade = ingrediente.unidade === "un";
 
   return (
     <div className="max-w-lg space-y-6">
       <Cartao titulo="Editar ingrediente">
-        {unidadeAntiga && (
-          <p className="mb-4 rounded-xl border border-alerta/40 bg-alerta/10 px-4 py-3 text-sm text-alerta">
-            Este ingrediente foi cadastrado em &quot;{ingrediente.unidade}&quot;. Ao salvar, ele passa a ser tratado
-            em gramas — preencha os campos do produto abaixo com os valores corretos em gramas antes de salvar.
+        {porUnidade && (
+          <p className="mb-4 rounded-xl border border-borda bg-painel-claro px-4 py-3 text-sm text-texto-suave">
+            Este ingrediente está marcado como precificado por unidade (não por peso). Para mudar isso, use a tela{" "}
+            <Link href="/calculadora/ingredientes" className="font-bold text-terracota hover:underline">
+              Calculadora
+            </Link>
+            .
           </p>
         )}
         <form action={salvar} className="space-y-4">
@@ -35,7 +39,7 @@ export default async function EditarIngredientePage({ params }: { params: Promis
             defaultValue={ingrediente.quantidadeEstoque}
           />
           <Campo
-            rotulo="Quantas gramas tem o produto"
+            rotulo={porUnidade ? "Quantas unidades tem o produto" : "Quantas gramas tem o produto"}
             name="gramasPorEmbalagem"
             type="number"
             step="any"
@@ -49,7 +53,7 @@ export default async function EditarIngredientePage({ params }: { params: Promis
             defaultValue={ingrediente.precoEmbalagem}
           />
           <p className="text-sm font-bold text-terracota-vibrante">
-            Preço por grama: R$ {ingrediente.precoUnitario.toFixed(4)}
+            Preço por {porUnidade ? "unidade" : "grama"}: R$ {ingrediente.precoUnitario.toFixed(4)}
           </p>
           <Botao type="submit">Salvar</Botao>
         </form>

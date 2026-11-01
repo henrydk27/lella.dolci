@@ -23,6 +23,7 @@ interface DadosIngrediente {
   quantidadeEstoque: number;
   gramasPorEmbalagem: number;
   precoEmbalagem: number;
+  unidade?: string;
 }
 
 export async function adicionarIngrediente(dados: DadosIngrediente) {
@@ -30,7 +31,7 @@ export async function adicionarIngrediente(dados: DadosIngrediente) {
     .insert(ingredientes)
     .values({
       nome: dados.nome,
-      unidade: "g",
+      unidade: dados.unidade ?? "g",
       quantidadeEstoque: dados.quantidadeEstoque,
       gramasPorEmbalagem: dados.gramasPorEmbalagem,
       precoEmbalagem: dados.precoEmbalagem,
@@ -45,7 +46,7 @@ export async function atualizarIngrediente(id: number, dados: DadosIngrediente) 
     .update(ingredientes)
     .set({
       nome: dados.nome,
-      unidade: "g",
+      unidade: dados.unidade ?? "g",
       quantidadeEstoque: dados.quantidadeEstoque,
       gramasPorEmbalagem: dados.gramasPorEmbalagem,
       precoEmbalagem: dados.precoEmbalagem,
