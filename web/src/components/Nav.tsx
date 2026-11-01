@@ -34,7 +34,7 @@ export function Nav() {
           <h1 className="font-titulo text-2xl text-terracota-vibrante">Lella Dolci</h1>
           <p className="text-sm text-texto-suave">controle de vendas</p>
         </div>
-        <nav className="flex flex-wrap gap-1">
+        <nav className="flex flex-wrap items-center gap-1">
           {ITENS.map((item) => (
             <Link
               key={item.href}
@@ -44,7 +44,7 @@ export function Nav() {
               {item.texto}
             </Link>
           ))}
-          <div className="group relative">
+          <div className="group relative inline-flex items-center">
             <Link
               href="/calculadora"
               className="rounded-full px-3 py-1.5 text-sm font-bold text-texto hover:bg-selecao"

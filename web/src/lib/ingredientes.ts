@@ -55,6 +55,27 @@ export async function atualizarIngrediente(id: number, dados: DadosIngrediente) 
     .where(eq(ingredientes.id, id));
 }
 
+interface AtualizacaoIngrediente {
+  id: number;
+  unidade: string;
+  gramasPorEmbalagem: number;
+  precoEmbalagem: number;
+}
+
+export async function atualizarVariosIngredientes(atualizacoes: AtualizacaoIngrediente[]) {
+  for (const a of atualizacoes) {
+    await db
+      .update(ingredientes)
+      .set({
+        unidade: a.unidade,
+        gramasPorEmbalagem: a.gramasPorEmbalagem,
+        precoEmbalagem: a.precoEmbalagem,
+        precoUnitario: calcularPrecoPorGrama(a.gramasPorEmbalagem, a.precoEmbalagem),
+      })
+      .where(eq(ingredientes.id, a.id));
+  }
+}
+
 export async function removerIngrediente(id: number) {
   await db.delete(ingredientes).where(eq(ingredientes.id, id));
 }

@@ -9,16 +9,20 @@ function numero(formData: FormData, campo: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export async function atualizarIngredienteNaCalculadora(id: number, formData: FormData) {
-  const atual = await ingredientesLib.buscarIngrediente(id);
-  if (!atual) return;
-  await ingredientesLib.atualizarIngrediente(id, {
-    nome: atual.nome,
-    quantidadeEstoque: atual.quantidadeEstoque,
-    unidade: String(formData.get("unidade") ?? "g"),
-    gramasPorEmbalagem: numero(formData, "gramasPorEmbalagem"),
-    precoEmbalagem: numero(formData, "precoEmbalagem"),
-  });
+export async function atualizarIngredientesNaCalculadora(formData: FormData) {
+  const ids = String(formData.get("ids") ?? "")
+    .split(",")
+    .filter(Boolean)
+    .map(Number);
+
+  const atualizacoes = ids.map((id) => ({
+    id,
+    unidade: String(formData.get(`unidade-${id}`) ?? "g"),
+    gramasPorEmbalagem: numero(formData, `gramasPorEmbalagem-${id}`),
+    precoEmbalagem: numero(formData, `precoEmbalagem-${id}`),
+  }));
+
+  await ingredientesLib.atualizarVariosIngredientes(atualizacoes);
   revalidatePath("/calculadora/ingredientes");
   revalidatePath("/ingredientes");
 }
