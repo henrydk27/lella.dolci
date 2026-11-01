@@ -10,7 +10,6 @@ const ITENS = [
   { href: "/planejador", texto: "Planejador" },
   { href: "/pedidos", texto: "Pedidos" },
   { href: "/historico", texto: "Histórico" },
-  { href: "/gastos", texto: "Gastos" },
 ];
 
 export function Nav() {

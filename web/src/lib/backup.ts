@@ -11,7 +11,6 @@ import {
   produtoIngredientes,
   produtoEmbalagens,
   planoProducaoItens,
-  gastos,
 } from "@/db/schema";
 
 function adicionarAba<T extends Record<string, unknown>>(
@@ -217,21 +216,6 @@ export async function gerarPlanilhaBackup(): Promise<ExcelJS.Buffer> {
       { chave: "quantidade", titulo: "Quantidade", largura: 12 },
     ],
     linhasReceitasEmbalagens
-  );
-
-  const todosGastos = await db.select().from(gastos);
-  adicionarAba(
-    workbook,
-    "Gastos",
-    [
-      { chave: "id", titulo: "ID", largura: 8 },
-      { chave: "nome", titulo: "Nome", largura: 28 },
-      { chave: "data", titulo: "Data", largura: 14 },
-      { chave: "tipoPagamento", titulo: "Pagamento", largura: 14 },
-      { chave: "categoria", titulo: "Categoria", largura: 18 },
-      { chave: "valor", titulo: "Valor", largura: 14 },
-    ],
-    todosGastos
   );
 
   return workbook.xlsx.writeBuffer();
