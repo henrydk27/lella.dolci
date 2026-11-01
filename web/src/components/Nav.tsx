@@ -6,8 +6,6 @@ const ITENS = [
   { href: "/dashboard", texto: "Dashboard" },
   { href: "/clientes", texto: "Clientes" },
   { href: "/produtos", texto: "Produtos" },
-  { href: "/ingredientes", texto: "Ingredientes" },
-  { href: "/embalagens", texto: "Embalagens" },
   { href: "/planejador", texto: "Planejador" },
   { href: "/pedidos", texto: "Pedidos" },
   { href: "/historico", texto: "Histórico" },

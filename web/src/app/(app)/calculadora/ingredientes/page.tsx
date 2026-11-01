@@ -21,17 +21,18 @@ export default async function CalculadoraIngredientesPage({
         <div>
           <h2 className="font-titulo text-xl text-terracota-vibrante">Custo dos ingredientes</h2>
           <p className="text-sm text-texto-suave">
-            Os valores podem ser editados direto aqui — útil porque o preço no mercado muda com frequência. Para
-            editar nome ou estoque, use a tela{" "}
-            <Link href="/ingredientes" className="font-bold text-terracota hover:underline">
-              Ingredientes
-            </Link>
-            .
+            Tipo, peso/quantidade e preço podem ser editados direto aqui. Para mudar o nome, o estoque ou excluir, use
+            o link &quot;Editar&quot; de cada linha.
           </p>
         </div>
-        <Link href="/calculadora" className="text-sm font-bold text-terracota hover:underline">
-          Voltar
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/ingredientes/novo">
+            <Botao variante="fantasma">+ Novo ingrediente</Botao>
+          </Link>
+          <Link href="/calculadora" className="whitespace-nowrap text-sm font-bold text-terracota hover:underline">
+            Voltar
+          </Link>
+        </div>
       </div>
 
       <BarraBusca buscar={buscar} placeholder="Buscar ingrediente" />
@@ -48,10 +49,10 @@ export default async function CalculadoraIngredientesPage({
 
         <Tabela>
           <TabelaCabecalho
-            colunas={["Ingrediente", "Tipo", "Peso/Qtd. da embalagem fechada", "Custo da embalagem", "Custo por peso/unidade"]}
+            colunas={["Ingrediente", "Tipo", "Peso/Qtd. da embalagem fechada", "Custo da embalagem", "Custo por peso/unidade", ""]}
           />
           <tbody>
-            {itens.length === 0 && <TabelaVazia colunas={5} texto="Nenhum ingrediente encontrado." />}
+            {itens.length === 0 && <TabelaVazia colunas={6} texto="Nenhum ingrediente encontrado." />}
             {itens.map((i) => {
               const porUnidade = i.unidade === "un";
               return (
@@ -90,6 +91,11 @@ export default async function CalculadoraIngredientesPage({
                   <TabelaCelula>
                     R$ {formatarPrecoBase(i.precoUnitario)}
                     {porUnidade ? "/un" : "/g"}
+                  </TabelaCelula>
+                  <TabelaCelula>
+                    <Link href={`/ingredientes/${i.id}`} className="font-bold text-terracota hover:underline">
+                      Editar
+                    </Link>
                   </TabelaCelula>
                 </TabelaLinha>
               );

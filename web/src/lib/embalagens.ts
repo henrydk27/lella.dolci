@@ -36,6 +36,22 @@ export async function removerEmbalagem(id: number) {
   await db.delete(embalagens).where(eq(embalagens.id, id));
 }
 
+interface AtualizacaoEmbalagem {
+  id: number;
+  categoria: string | null;
+  custoTotal: number;
+  rendimento: number;
+}
+
+export async function atualizarVariasEmbalagens(atualizacoes: AtualizacaoEmbalagem[]) {
+  for (const a of atualizacoes) {
+    await db
+      .update(embalagens)
+      .set({ categoria: a.categoria, custoTotal: a.custoTotal, rendimento: a.rendimento })
+      .where(eq(embalagens.id, a.id));
+  }
+}
+
 export function calcularCustoUnitario(embalagem: Pick<Embalagem, "custoTotal" | "rendimento">): number {
   if (!embalagem.rendimento) return 0;
   return embalagem.custoTotal / embalagem.rendimento;
