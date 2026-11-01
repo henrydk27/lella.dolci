@@ -1,7 +1,17 @@
 import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { pedidos, pedidoItens, produtos, clientes, fechamentosMensais } from "@/db/schema";
-import * as produtosLib from "./produtos";
+import {
+  pedidos,
+  pedidoItens,
+  produtos,
+  produtoIngredientes,
+  produtoEmbalagens,
+  ingredientes,
+  embalagens,
+  clientes,
+  pagamentos,
+  fechamentosMensais,
+} from "@/db/schema";
 import * as pagamentosLib from "./pagamentos";
 
 export const PERCENTUAL_RESERVA_DESPESAS = 0.1;
@@ -63,15 +73,62 @@ async function buscarPedidosComItensPorIds(ids: number[]): Promise<PedidoComIten
 // Custo de ingredientes + embalagens de cada produto (sem a taxa de
 // utilidades/overhead do produto - essa, no Financeiro, vira a "Reserva de
 // despesas" calculada a parte, apenas sobre ingredientes).
+//
+// Duas consultas agregadas (uma para ingredientes, uma para embalagens),
+// nunca uma por produto: com centenas de pedidos/produtos, uma consulta por
+// produto para um banco remoto (Turso) facilmente estoura o tempo limite da
+// funcao na Vercel - foi exatamente isso que travava o Dashboard/Financeiro
+// em producao (rapido demais pra notar com o banco local).
 async function mapaCustoPorProduto(produtoIds: number[]): Promise<Map<number, { ingredientes: number; total: number }>> {
   const unicos = Array.from(new Set(produtoIds));
   const mapa = new Map<number, { ingredientes: number; total: number }>();
+  if (unicos.length === 0) return mapa;
+
+  const linhasIngredientes = await db
+    .select({
+      produtoId: produtoIngredientes.produtoId,
+      custo: sql<number>`COALESCE(SUM(${produtoIngredientes.quantidade} * ${ingredientes.precoUnitario}), 0)`,
+    })
+    .from(produtoIngredientes)
+    .innerJoin(ingredientes, eq(ingredientes.id, produtoIngredientes.ingredienteId))
+    .where(inArray(produtoIngredientes.produtoId, unicos))
+    .groupBy(produtoIngredientes.produtoId);
+
+  const linhasEmbalagens = await db
+    .select({
+      produtoId: produtoEmbalagens.produtoId,
+      custo: sql<number>`COALESCE(SUM(${produtoEmbalagens.quantidade} * (${embalagens.custoTotal} * 1.0 / NULLIF(${embalagens.rendimento}, 0))), 0)`,
+    })
+    .from(produtoEmbalagens)
+    .innerJoin(embalagens, eq(embalagens.id, produtoEmbalagens.embalagemId))
+    .where(inArray(produtoEmbalagens.produtoId, unicos))
+    .groupBy(produtoEmbalagens.produtoId);
+
+  const mapaIngredientes = new Map(linhasIngredientes.map((l) => [l.produtoId, l.custo]));
+  const mapaEmbalagens = new Map(linhasEmbalagens.map((l) => [l.produtoId, l.custo]));
+
   for (const id of unicos) {
-    const ingredientes = await produtosLib.calcularCustoIngredientes(id);
-    const embalagens = await produtosLib.calcularCustoEmbalagens(id);
-    mapa.set(id, { ingredientes, total: ingredientes + embalagens });
+    const ing = mapaIngredientes.get(id) ?? 0;
+    const emb = mapaEmbalagens.get(id) ?? 0;
+    mapa.set(id, { ingredientes: ing, total: ing + emb });
   }
   return mapa;
+}
+
+// Soma de pagamentos por pedido, numa unica consulta agregada - usado onde
+// antes se chamava totalRecebidoPedido() num loop por pedido (o mesmo
+// problema de uma consulta por item que lentidao em producao).
+async function mapaRecebidoPorPedido(pedidoIds: number[]): Promise<Map<number, number>> {
+  if (pedidoIds.length === 0) return new Map();
+  const linhas = await db
+    .select({
+      pedidoId: pagamentos.pedidoId,
+      total: sql<number>`COALESCE(SUM(${pagamentos.valor}), 0)`,
+    })
+    .from(pagamentos)
+    .where(inArray(pagamentos.pedidoId, pedidoIds))
+    .groupBy(pagamentos.pedidoId);
+  return new Map(linhas.map((l) => [l.pedidoId, l.total]));
 }
 
 export interface ResumoPeriodo {
@@ -225,11 +282,10 @@ export async function pendenteGeral(): Promise<number> {
 // data do PAGAMENTO em vez da data da venda.
 export async function pendenteDoPeriodoDeVenda(dataInicio: string, dataFim: string): Promise<number> {
   const pedidosPeriodo = await buscarPedidosComItensNoPeriodo(dataInicio, dataFim);
+  const recebidoMapa = await mapaRecebidoPorPedido(pedidosPeriodo.map((p) => p.id));
   let pendente = 0;
   for (const p of pedidosPeriodo) {
-    const total = totalPedidoLocal(p);
-    const recebido = await pagamentosLib.totalRecebidoPedido(p.id);
-    pendente += total - recebido;
+    pendente += totalPedidoLocal(p) - (recebidoMapa.get(p.id) ?? 0);
   }
   return pendente;
 }
@@ -251,13 +307,15 @@ export async function pedidosComSaldoPendente() {
     .orderBy(pedidos.dataPedido);
 
   const comItens = await anexarItens(todos);
+  const recebidoMapa = await mapaRecebidoPorPedido(todos.map((t) => t.id));
+  const porId = new Map(todos.map((t) => [t.id, t]));
   const resultado = [];
   for (const p of comItens) {
     const total = totalPedidoLocal(p);
-    const recebido = await pagamentosLib.totalRecebidoPedido(p.id);
+    const recebido = recebidoMapa.get(p.id) ?? 0;
     const pendente = total - recebido;
     if (pendente > 0.009) {
-      resultado.push({ ...todos.find((t) => t.id === p.id)!, total, recebido, pendente });
+      resultado.push({ ...porId.get(p.id)!, total, recebido, pendente });
     }
   }
   return resultado;
