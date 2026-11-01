@@ -90,6 +90,30 @@ export const planoProducaoItens = sqliteTable("plano_producao_itens", {
   quantidadeProduzida: real("quantidade_produzida"),
 });
 
+// "Receitas prontas" da Calculadora: um livro de receitas salvas,
+// independente do cadastro de Produtos. O custo e preco por unidade sao
+// sempre calculados na hora (a partir do preco atual dos ingredientes),
+// nunca guardados, para acompanhar automaticamente qualquer mudanca de
+// preco sem afetar o historico de vendas ja fechado.
+export const GRUPOS_RECEITA = ["brigadeiro", "outros"] as const;
+export type GrupoReceita = (typeof GRUPOS_RECEITA)[number];
+
+export const receitas = sqliteTable("receitas", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  nome: text("nome").notNull(),
+  grupo: text("grupo").notNull().default("outros"),
+  pesoUnidadeGramas: real("peso_unidade_gramas"),
+  rendimento: real("rendimento").notNull().default(1),
+  observacoes: text("observacoes"),
+});
+
+export const receitaIngredientes = sqliteTable("receita_ingredientes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  receitaId: integer("receita_id").notNull().references(() => receitas.id, { onDelete: "cascade" }),
+  ingredienteId: integer("ingrediente_id").notNull().references(() => ingredientes.id),
+  gramasUsadas: real("gramas_usadas").notNull(),
+});
+
 export const tentativasLogin = sqliteTable("tentativas_login", {
   ip: text("ip").primaryKey(),
   tentativas: integer("tentativas").notNull().default(0),

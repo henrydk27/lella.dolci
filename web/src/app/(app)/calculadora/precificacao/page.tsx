@@ -22,7 +22,13 @@ export default async function CalculadoraPrecificacaoPage() {
       </div>
 
       <CalculadoraPrecificacao
-        ingredientes={ingredientes.map((i) => ({ id: i.id, nome: i.nome, precoPorGrama: i.precoUnitario }))}
+        ingredientes={ingredientes.map((i) => ({
+          id: i.id,
+          nome: i.nome,
+          precoEmbalagem: i.precoEmbalagem,
+          gramasPorEmbalagem: i.gramasPorEmbalagem,
+          precoPorGrama: i.precoUnitario,
+        }))}
         embalagens={embalagens.map((e) => ({
           id: e.id,
           nome: e.nome,
