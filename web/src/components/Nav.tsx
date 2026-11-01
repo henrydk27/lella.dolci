@@ -12,6 +12,13 @@ const ITENS = [
   { href: "/historico", texto: "Histórico" },
 ];
 
+const SUBMENU_CALCULADORA = [
+  { href: "/calculadora/ingredientes", texto: "Custo dos ingredientes" },
+  { href: "/calculadora/embalagens", texto: "Embalagens" },
+  { href: "/calculadora/precificacao", texto: "Calculadora de precificação" },
+  { href: "/calculadora/receitas", texto: "Receitas prontas" },
+];
+
 export function Nav() {
   async function sair() {
     "use server";
@@ -37,6 +44,25 @@ export function Nav() {
               {item.texto}
             </Link>
           ))}
+          <div className="group relative">
+            <Link
+              href="/calculadora"
+              className="rounded-full px-3 py-1.5 text-sm font-bold text-texto hover:bg-selecao"
+            >
+              Calculadora
+            </Link>
+            <div className="invisible absolute right-0 top-full z-10 mt-1 w-56 rounded-xl border border-borda bg-painel p-2 opacity-0 shadow-lg transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+              {SUBMENU_CALCULADORA.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="block rounded-lg px-3 py-2 text-sm font-bold text-texto hover:bg-selecao"
+                >
+                  {item.texto}
+                </Link>
+              ))}
+            </div>
+          </div>
         </nav>
         <div className="flex items-center gap-2">
           {/* link comum (nao o <Link> do Next): precisa ser uma navegacao de
