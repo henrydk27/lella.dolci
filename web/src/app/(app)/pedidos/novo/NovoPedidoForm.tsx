@@ -147,7 +147,11 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
   // valor cobrado e' sempre o da caixa fechada, nao a soma do preco avulso
   // de cada sabor.
   const itensDaCaixa = useMemo(() => {
-    const precoPorUnidade = tamanhoCaixa > 0 ? Math.round((precoTotalCaixa / tamanhoCaixa) * 100) / 100 : 0;
+    // Sem arredondar aqui: arredondar antes de multiplicar pela quantidade
+    // fazia o total da caixa fechar errado (ex: 14/6 vira 2,33, e 6x2,33 =
+    // 13,98 em vez de 14,00). O arredondamento pra exibicao fica por conta
+    // do toFixed(2) de cada tela.
+    const precoPorUnidade = tamanhoCaixa > 0 ? precoTotalCaixa / tamanhoCaixa : 0;
     const contagem = new Map<number, number>();
     for (const produtoId of slots) {
       if (produtoId === null) continue;
