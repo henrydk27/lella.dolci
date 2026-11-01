@@ -4,18 +4,7 @@ import { atualizarIngredientesNaCalculadora } from "./actions";
 import { Tabela, TabelaCabecalho, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import { BarraBusca, correspondeBusca } from "@/components/ui/BarraBusca";
 import { Botao } from "@/components/ui/Botao";
-
-// Mostra o preco por grama/unidade com o minimo de casas decimais que ainda
-// representa o valor exatamente (entre 2 e 4), em vez de sempre 4 casas fixas
-// (ex: R$ 6,9900 vira R$ 6,99; R$ 0,0045 continua R$ 0,0045).
-function formatarPrecoBase(valor: number): string {
-  for (let casas = 2; casas <= 4; casas++) {
-    if (Math.abs(parseFloat(valor.toFixed(casas)) - valor) < 1e-9) {
-      return valor.toFixed(casas);
-    }
-  }
-  return valor.toFixed(4);
-}
+import { formatarPrecoBase } from "@/lib/ingredientes";
 
 export default async function CalculadoraIngredientesPage({
   searchParams,

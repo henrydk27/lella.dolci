@@ -53,7 +53,7 @@ export default async function EditarIngredientePage({ params }: { params: Promis
             defaultValue={ingrediente.precoEmbalagem}
           />
           <p className="text-sm font-bold text-terracota-vibrante">
-            Preço por {porUnidade ? "unidade" : "grama"}: R$ {ingrediente.precoUnitario.toFixed(4)}
+            Preço por {porUnidade ? "unidade" : "grama"}: R$ {ingredientes.formatarPrecoBase(ingrediente.precoUnitario)}
           </p>
           <Botao type="submit">Salvar</Botao>
         </form>

@@ -73,7 +73,7 @@ export default async function IngredientesPage({
               <TabelaCelula>{i.quantidadeEstoque}</TabelaCelula>
               <TabelaCelula>{i.gramasPorEmbalagem > 0 ? i.gramasPorEmbalagem : "-"}</TabelaCelula>
               <TabelaCelula>{i.gramasPorEmbalagem > 0 ? `R$ ${i.precoEmbalagem.toFixed(2)}` : "-"}</TabelaCelula>
-              <TabelaCelula>R$ {i.precoUnitario.toFixed(4)}</TabelaCelula>
+              <TabelaCelula>R$ {ingredientes.formatarPrecoBase(i.precoUnitario)}</TabelaCelula>
               <TabelaCelula>
                 <Link href={`/ingredientes/${i.id}`} className="font-bold text-terracota hover:underline">
                   Editar
