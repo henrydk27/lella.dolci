@@ -1,58 +1,104 @@
 import nodemailer from "nodemailer";
-import { eq, and, ne, sql } from "drizzle-orm";
+import { eq, ne, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { clientes, pedidos, pedidoItens } from "@/db/schema";
+import { clientes, pedidos, pedidoItens, produtos, pagamentos } from "@/db/schema";
 
-export interface DevedorResumo {
+export interface ItemDevido {
+  produtoNome: string;
+  quantidade: number;
+  precoUnitario: number;
+}
+
+export interface PedidoDevido {
+  pedidoId: number;
+  dataPedido: string;
+  itens: ItemDevido[];
+  pendente: number;
+}
+
+export interface DevedorDetalhado {
   clienteId: number | null;
   clienteNome: string;
-  quantidadePedidos: number;
+  pedidos: PedidoDevido[];
   totalDevido: number;
 }
 
-// Soma, por cliente, tudo que ainda esta em aberto (qualquer pedido que nao
-// esteja com status "pago"), somando itens + taxa de entrega.
-// Usa agregacao SQL (nao um loop por pedido) para nao repetir o problema de
-// N+1 ja visto nesse projeto.
-export async function listarDevedores(): Promise<{ devedores: DevedorResumo[]; totalGeral: number }> {
-  const itensPorCliente = await db
+// Para cada pedido ainda nao marcado como "pago", calcula o saldo realmente
+// pendente (total do pedido menos o que ja foi efetivamente recebido via
+// pagamentos - cobre pagamentos parciais corretamente) e agrupa por cliente,
+// com o detalhe de cada pedido (data + itens). Tudo em poucas consultas em
+// lote, sem uma consulta por pedido.
+export async function listarDevedoresDetalhado(): Promise<{ devedores: DevedorDetalhado[]; totalGeral: number }> {
+  const pedidosAbertos = await db
     .select({
+      id: pedidos.id,
       clienteId: pedidos.clienteId,
       clienteNome: clientes.nome,
-      quantidadePedidos: sql<number>`COUNT(DISTINCT ${pedidos.id})`,
-      itensTotal: sql<number>`COALESCE(SUM(${pedidoItens.quantidade} * ${pedidoItens.precoUnitario}), 0)`,
+      dataPedido: pedidos.dataPedido,
+      taxaEntrega: pedidos.taxaEntrega,
     })
     .from(pedidos)
-    .innerJoin(pedidoItens, eq(pedidoItens.pedidoId, pedidos.id))
     .leftJoin(clientes, eq(clientes.id, pedidos.clienteId))
-    .where(ne(pedidos.status, "pago"))
-    .groupBy(pedidos.clienteId);
+    .where(ne(pedidos.status, "pago"));
 
-  const taxaPorCliente = await db
+  if (pedidosAbertos.length === 0) return { devedores: [], totalGeral: 0 };
+
+  const ids = pedidosAbertos.map((p) => p.id);
+
+  const itensLinhas = await db
     .select({
-      clienteId: pedidos.clienteId,
-      taxaTotal: sql<number>`COALESCE(SUM(${pedidos.taxaEntrega}), 0)`,
+      pedidoId: pedidoItens.pedidoId,
+      produtoNome: produtos.nome,
+      quantidade: pedidoItens.quantidade,
+      precoUnitario: pedidoItens.precoUnitario,
     })
-    .from(pedidos)
-    .where(ne(pedidos.status, "pago"))
-    .groupBy(pedidos.clienteId);
+    .from(pedidoItens)
+    .innerJoin(produtos, eq(produtos.id, pedidoItens.produtoId))
+    .where(inArray(pedidoItens.pedidoId, ids));
 
-  const taxaPorClienteMapa = new Map<number | null, number>();
-  for (const t of taxaPorCliente) {
-    taxaPorClienteMapa.set(t.clienteId, t.taxaTotal);
+  const pagamentosLinhas = await db
+    .select({
+      pedidoId: pagamentos.pedidoId,
+      total: sql<number>`COALESCE(SUM(${pagamentos.valor}), 0)`,
+    })
+    .from(pagamentos)
+    .where(inArray(pagamentos.pedidoId, ids))
+    .groupBy(pagamentos.pedidoId);
+
+  const itensPorPedido = new Map<number, ItemDevido[]>();
+  for (const i of itensLinhas) {
+    const lista = itensPorPedido.get(i.pedidoId) ?? [];
+    lista.push({ produtoNome: i.produtoNome, quantidade: i.quantidade, precoUnitario: i.precoUnitario });
+    itensPorPedido.set(i.pedidoId, lista);
+  }
+  const recebidoPorPedido = new Map(pagamentosLinhas.map((p) => [p.pedidoId, p.total]));
+
+  const porCliente = new Map<string, DevedorDetalhado>();
+
+  for (const p of pedidosAbertos) {
+    const itens = itensPorPedido.get(p.id) ?? [];
+    const totalItens = itens.reduce((soma, i) => soma + i.quantidade * i.precoUnitario, 0);
+    const total = totalItens + p.taxaEntrega;
+    const recebido = recebidoPorPedido.get(p.id) ?? 0;
+    const pendente = total - recebido;
+    if (pendente <= 0.009) continue;
+
+    const chave = p.clienteNome ?? `__sem_cliente_${p.id}`;
+    let devedor = porCliente.get(chave);
+    if (!devedor) {
+      devedor = { clienteId: p.clienteId, clienteNome: p.clienteNome ?? "(sem cliente)", pedidos: [], totalDevido: 0 };
+      porCliente.set(chave, devedor);
+    }
+    devedor.pedidos.push({ pedidoId: p.id, dataPedido: p.dataPedido, itens, pendente });
+    devedor.totalDevido += pendente;
   }
 
-  const devedores: DevedorResumo[] = itensPorCliente
-    .map((c) => ({
-      clienteId: c.clienteId,
-      clienteNome: c.clienteNome ?? "(sem cliente)",
-      quantidadePedidos: c.quantidadePedidos,
-      totalDevido: c.itensTotal + (taxaPorClienteMapa.get(c.clienteId) ?? 0),
-    }))
-    .sort((a, b) => b.totalDevido - a.totalDevido);
+  const devedores = Array.from(porCliente.values()).sort((a, b) => b.totalDevido - a.totalDevido);
+  for (const d of devedores) {
+    d.pedidos.sort((a, b) => a.dataPedido.localeCompare(b.dataPedido));
+  }
 
   const totalGeral = devedores.reduce((soma, d) => soma + d.totalDevido, 0);
-
   return { devedores, totalGeral };
 }
 
@@ -60,29 +106,40 @@ function formatarMoeda(valor: number): string {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function montarHtmlResumo(devedores: DevedorResumo[], totalGeral: number): string {
-  const linhas = devedores
-    .map(
-      (d) =>
-        `<tr><td style="padding:4px 12px;border-bottom:1px solid #eee">${d.clienteNome}</td><td style="padding:4px 12px;border-bottom:1px solid #eee">${d.quantidadePedidos}</td><td style="padding:4px 12px;border-bottom:1px solid #eee">${formatarMoeda(d.totalDevido)}</td></tr>`
-    )
+function dataBr(dataPedido: string): string {
+  const [ano, mes, dia] = dataPedido.slice(0, 10).split("-");
+  return `${dia}/${mes}`;
+}
+
+function formatarItens(itens: ItemDevido[]): string {
+  return itens.map((i) => `${i.quantidade}x ${i.produtoNome}`).join(", ");
+}
+
+function montarHtmlResumo(devedores: DevedorDetalhado[], totalGeral: number): string {
+  const blocosClientes = devedores
+    .map((d) => {
+      const linhasPedidos = d.pedidos
+        .map(
+          (p) =>
+            `<li style="padding:2px 0">${dataBr(p.dataPedido)} - ${formatarItens(p.itens)} - ${formatarMoeda(p.pendente)}</li>`
+        )
+        .join("");
+      return `
+        <div style="margin-bottom:16px">
+          <p style="margin:0 0 4px;font-weight:bold">${d.clienteNome} — ${formatarMoeda(d.totalDevido)}</p>
+          <ul style="margin:0;padding-left:18px">${linhasPedidos}</ul>
+        </div>
+      `;
+    })
     .join("");
 
   return `
     <div style="font-family:sans-serif;color:#333">
-      <h2 style="color:#b5651d">Lella Dolci — resumo de pedidos em aberto</h2>
-      <p>${devedores.length === 0 ? "Nenhum pedido em aberto no momento." : "Segue quem ainda esta devendo:"}</p>
+      <h2 style="color:#b5651d">Lella Dolci — pedidos em aberto</h2>
+      <p>${devedores.length === 0 ? "Nenhum pedido em aberto no momento." : "Segue quem ainda esta devendo, pedido por pedido:"}</p>
       ${
         devedores.length > 0
-          ? `<table style="border-collapse:collapse;width:100%;max-width:480px">
-              <thead><tr>
-                <th style="text-align:left;padding:4px 12px;border-bottom:2px solid #b5651d">Cliente</th>
-                <th style="text-align:left;padding:4px 12px;border-bottom:2px solid #b5651d">Pedidos</th>
-                <th style="text-align:left;padding:4px 12px;border-bottom:2px solid #b5651d">Total devido</th>
-              </tr></thead>
-              <tbody>${linhas}</tbody>
-            </table>
-            <p style="margin-top:16px;font-weight:bold">Total em aberto: ${formatarMoeda(totalGeral)}</p>`
+          ? `${blocosClientes}<p style="margin-top:16px;font-weight:bold">Total em aberto: ${formatarMoeda(totalGeral)}</p>`
           : ""
       }
     </div>
@@ -98,7 +155,7 @@ export async function enviarAlertaDevedores() {
     throw new Error("GMAIL_USER / GMAIL_APP_PASSWORD nao configurados.");
   }
 
-  const { devedores, totalGeral } = await listarDevedores();
+  const { devedores, totalGeral } = await listarDevedoresDetalhado();
 
   const transportador = nodemailer.createTransport({
     service: "gmail",
