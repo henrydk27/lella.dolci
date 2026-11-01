@@ -44,6 +44,9 @@ export async function atualizarProduto(id: number, formData: FormData) {
 }
 
 export async function removerProduto(id: number) {
+  if (await produtos.produtoTemPedidos(id)) {
+    redirect(`/produtos/${id}?erro=tem-pedidos`);
+  }
   await produtos.removerProduto(id);
   revalidatePath("/produtos");
   redirect("/produtos");

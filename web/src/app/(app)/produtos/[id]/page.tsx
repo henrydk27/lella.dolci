@@ -14,8 +14,15 @@ import { Cartao } from "@/components/ui/Cartao";
 import { Campo, CampoArea, CampoSelect } from "@/components/ui/Campo";
 import { Botao } from "@/components/ui/Botao";
 
-export default async function EditarProdutoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditarProdutoPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ erro?: string }>;
+}) {
   const { id } = await params;
+  const { erro } = await searchParams;
   const produtoId = Number(id);
   const produto = await produtos.buscarProduto(produtoId);
   if (!produto) notFound();
@@ -63,6 +70,13 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
           <CampoArea rotulo="Descrição" name="descricao" defaultValue={produto.descricao ?? ""} rows={3} />
           <Botao type="submit">Salvar</Botao>
         </form>
+        {erro === "tem-pedidos" && (
+          <p className="mt-3 rounded-xl border border-alerta/40 bg-alerta/10 px-4 py-3 text-sm text-alerta">
+            Este produto não pode ser removido porque já existem pedidos com ele — removê-lo apagaria esse histórico
+            de vendas. Se não quiser mais vendê-lo, edite o nome para indicar isso (ex: &quot;(descontinuado)&quot;)
+            ou simplesmente pare de usá-lo em novos pedidos.
+          </p>
+        )}
         <form action={remover} className="mt-3">
           <Botao type="submit" perigo>
             Remover produto

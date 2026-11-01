@@ -1,6 +1,6 @@
 import { eq, asc, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { produtos, produtoIngredientes, produtoEmbalagens, ingredientes, embalagens } from "@/db/schema";
+import { produtos, produtoIngredientes, produtoEmbalagens, ingredientes, embalagens, pedidoItens } from "@/db/schema";
 import { calcularCustoUnitario } from "./embalagens";
 
 export type Produto = typeof produtos.$inferSelect;
@@ -53,6 +53,18 @@ export async function atualizarProduto(
   dados: { nome: string; preco: number; descricao?: string | null; categoria?: string | null; taxaOverhead: number }
 ) {
   await db.update(produtos).set(dados).where(eq(produtos.id, id));
+}
+
+// Pedidos (passados ou atuais) guardam o produto vendido pra sempre, mesmo
+// que o cadastro do produto mude ou seja removido depois - por isso essa
+// ligacao nao tem exclusao em cascata. Antes de remover, avisamos se o
+// produto tem pedidos, em vez de deixar o banco recusar com um erro cru.
+export async function produtoTemPedidos(id: number): Promise<boolean> {
+  const [{ total }] = await db
+    .select({ total: sql<number>`COUNT(*)` })
+    .from(pedidoItens)
+    .where(eq(pedidoItens.produtoId, id));
+  return total > 0;
 }
 
 export async function removerProduto(id: number) {
