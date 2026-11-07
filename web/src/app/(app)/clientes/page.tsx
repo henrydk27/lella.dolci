@@ -19,6 +19,7 @@ const COLUNAS_ORDENAVEIS: { campo: string; rotulo: string }[] = [
   { campo: "nome", rotulo: "Nome" },
   { campo: "status", rotulo: "Status" },
   { campo: "totalGasto", rotulo: "Total gasto" },
+  { campo: "pendente", rotulo: "Pendente" },
   { campo: "ultimaCompra", rotulo: "Última compra" },
 ];
 const CAMPOS_VALIDOS = COLUNAS_ORDENAVEIS.map((c) => c.campo);
@@ -31,6 +32,8 @@ function valorOrdenavel(info: ClienteComStatus, campo: string): string | number 
       return info.status;
     case "totalGasto":
       return info.totalGasto;
+    case "pendente":
+      return info.pendente;
     case "ultimaCompra":
       return info.ultimaCompra ?? "";
     default:
@@ -99,7 +102,7 @@ export default async function ClientesPage({
           extras={["Telefone", ""]}
         />
         <tbody>
-          {itensOrdenados.length === 0 && <TabelaVazia colunas={6} texto="Nenhum cliente cadastrado." />}
+          {itensOrdenados.length === 0 && <TabelaVazia colunas={7} texto="Nenhum cliente cadastrado." />}
           {itensOrdenados.map((info) => (
             <TabelaLinha key={info.cliente.id}>
               <TabelaCelula>{info.cliente.nome}</TabelaCelula>
@@ -111,6 +114,9 @@ export default async function ClientesPage({
                 </span>
               </TabelaCelula>
               <TabelaCelula>R$ {info.totalGasto.toFixed(2)}</TabelaCelula>
+              <TabelaCelula className={info.pendente > 0 ? "font-bold text-alerta" : ""}>
+                R$ {info.pendente.toFixed(2)}
+              </TabelaCelula>
               <TabelaCelula>
                 {info.ultimaCompra ? info.ultimaCompra.slice(0, 10).split("-").reverse().join("/") : "-"}
               </TabelaCelula>

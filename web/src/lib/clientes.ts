@@ -1,6 +1,6 @@
-import { eq, sql, and, gte, lte, desc, asc, inArray } from "drizzle-orm";
+import { eq, ne, sql, and, gte, lte, desc, asc, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { clientes, pedidos, pedidoItens, produtos } from "@/db/schema";
+import { clientes, pedidos, pedidoItens, produtos, pagamentos } from "@/db/schema";
 
 export type Cliente = typeof clientes.$inferSelect;
 
@@ -192,9 +192,50 @@ export async function historicoPedidosCliente(clienteId: number) {
     .orderBy(desc(pedidos.dataPedido));
 }
 
+// Para cada pedido ainda nao pago, o saldo pendente (total do pedido menos
+// o que ja foi recebido via pagamentos, cobrindo pagamentos parciais) somado
+// por cliente - em poucas consultas em lote, sem uma consulta por cliente.
+export async function mapaPendentePorCliente(): Promise<Map<number, number>> {
+  const pedidosAbertos = await db
+    .select({ id: pedidos.id, clienteId: pedidos.clienteId, taxaEntrega: pedidos.taxaEntrega })
+    .from(pedidos)
+    .where(ne(pedidos.status, "pago"));
+  const mapa = new Map<number, number>();
+  if (pedidosAbertos.length === 0) return mapa;
+
+  const ids = pedidosAbertos.map((p) => p.id);
+  const itensLinhas = await db
+    .select({
+      pedidoId: pedidoItens.pedidoId,
+      custo: sql<number>`COALESCE(SUM(${pedidoItens.quantidade} * ${pedidoItens.precoUnitario}), 0)`,
+    })
+    .from(pedidoItens)
+    .where(inArray(pedidoItens.pedidoId, ids))
+    .groupBy(pedidoItens.pedidoId);
+  const pagamentosLinhas = await db
+    .select({ pedidoId: pagamentos.pedidoId, total: sql<number>`COALESCE(SUM(${pagamentos.valor}), 0)` })
+    .from(pagamentos)
+    .where(inArray(pagamentos.pedidoId, ids))
+    .groupBy(pagamentos.pedidoId);
+
+  const totalItensPorPedido = new Map(itensLinhas.map((l) => [l.pedidoId, l.custo]));
+  const recebidoPorPedido = new Map(pagamentosLinhas.map((l) => [l.pedidoId, l.total]));
+
+  for (const p of pedidosAbertos) {
+    if (p.clienteId == null) continue;
+    const total = (totalItensPorPedido.get(p.id) ?? 0) + p.taxaEntrega;
+    const recebido = recebidoPorPedido.get(p.id) ?? 0;
+    const pendente = total - recebido;
+    if (pendente <= 0.009) continue;
+    mapa.set(p.clienteId, (mapa.get(p.clienteId) ?? 0) + pendente);
+  }
+  return mapa;
+}
+
 export async function listarClientesComStatus() {
   const todos = await listarClientes();
   const estatisticasPorCliente = await estatisticasBasicasTodosClientes();
+  const pendentePorCliente = await mapaPendentePorCliente();
   return todos.map((cliente) => {
     const basicas = estatisticasPorCliente.get(cliente.id) ?? {
       totalGasto: 0,
@@ -203,7 +244,12 @@ export async function listarClientesComStatus() {
     };
     const estatisticas: EstatisticasCliente = { ...basicas, ticketMedio: 0, produtoFavorito: null };
     estatisticas.ticketMedio = estatisticas.quantidadePedidos ? estatisticas.totalGasto / estatisticas.quantidadePedidos : 0;
-    return { cliente, ...estatisticas, status: calcularStatus(estatisticas) };
+    return {
+      cliente,
+      ...estatisticas,
+      status: calcularStatus(estatisticas),
+      pendente: pendentePorCliente.get(cliente.id) ?? 0,
+    };
   });
 }
 
