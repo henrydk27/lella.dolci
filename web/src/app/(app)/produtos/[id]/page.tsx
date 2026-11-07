@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import * as produtos from "@/lib/produtos";
 import * as ingredientesLib from "@/lib/ingredientes";
@@ -30,7 +31,11 @@ export default async function EditarProdutoPage({
 
   const categorias = await produtos.listarCategorias();
   const todasReceitas = await receitasLib.listarReceitas();
-  const ingredientesReceita = await produtos.listarIngredientesDoProduto(produtoId);
+  const receitaVinculada = produto.receitaId ? todasReceitas.find((r) => r.id === produto.receitaId) : undefined;
+  const ingredientesDoProduto = await produtos.listarIngredientesDoProduto(produtoId);
+  const ingredientesDaReceitaVinculada = produto.receitaId
+    ? await receitasLib.listarIngredientesDaReceita(produto.receitaId)
+    : [];
   const embalagensReceita = await produtos.listarEmbalagensDoProduto(produtoId);
   const detalhe = await produtos.detalharCustoProduto(produtoId);
   const margem = await produtos.calcularMargemProduto(produtoId, produto.preco);
@@ -90,10 +95,10 @@ export default async function EditarProdutoPage({
           </label>
           <Botao type="submit">Salvar</Botao>
         </form>
-        {produto.receitaId && (
+        {receitaVinculada && (
           <p className="mt-3 rounded-xl border border-borda bg-painel-claro px-4 py-3 text-xs text-texto-suave">
-            Este produto está usando o custo da receita vinculada — a lista de ingredientes abaixo fica guardada,
-            mas não entra na conta do custo enquanto a receita estiver vinculada.
+            Este produto está usando o custo da receita <strong>{receitaVinculada.nome}</strong> — qualquer alteração
+            nela (ingredientes ou taxa gás/luz/água) atualiza o custo deste produto automaticamente.
           </p>
         )}
         {erro === "tem-pedidos" && (
@@ -122,35 +127,62 @@ export default async function EditarProdutoPage({
       </Cartao>
 
       <div className="space-y-6">
-        <Cartao titulo="Ingredientes da receita">
-          <ul className="mb-4 space-y-2 text-sm">
-            {ingredientesReceita.length === 0 && <li className="text-texto-suave">Nenhum ingrediente adicionado.</li>}
-            {ingredientesReceita.map((i) => {
-              const removerEsteIngrediente = removerIngredienteReceita.bind(null, produtoId, i.id);
-              return (
-                <li key={i.id} className="flex items-center justify-between rounded-xl bg-painel-claro px-3 py-2">
-                  <span>
-                    {i.nome} — {i.quantidade} {i.unidade}
-                  </span>
-                  <form action={removerEsteIngrediente}>
-                    <button className="text-xs font-bold text-alerta hover:underline">remover</button>
-                  </form>
-                </li>
-              );
-            })}
-          </ul>
-          <form action={addIngrediente} className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="min-w-0 flex-1">
-              <CampoSelect
-                name="ingredienteId"
-                opcoes={todosIngredientes.map((i) => ({ valor: String(i.id), texto: `${i.nome} (${i.unidade})` }))}
-              />
-            </div>
-            <Campo name="quantidade" type="number" step="any" placeholder="Qtd" className="w-full sm:w-24" />
-            <Botao type="submit" className="w-full sm:w-auto">
-              + Adicionar
-            </Botao>
-          </form>
+        <Cartao titulo={receitaVinculada ? `Ingredientes (receita: ${receitaVinculada.nome})` : "Ingredientes da receita"}>
+          {receitaVinculada ? (
+            <>
+              <ul className="space-y-2 text-sm">
+                {ingredientesDaReceitaVinculada.length === 0 && (
+                  <li className="text-texto-suave">Nenhum ingrediente nessa receita ainda.</li>
+                )}
+                {ingredientesDaReceitaVinculada.map((i) => (
+                  <li key={i.id} className="flex items-center justify-between rounded-xl bg-painel-claro px-3 py-2">
+                    <span>
+                      {i.nome} — {i.gramasUsadas}g
+                    </span>
+                    <span className="text-texto-suave">R$ {(i.gramasUsadas * i.precoPorGrama).toFixed(2)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-texto-suave">
+                Esses ingredientes vem da receita vinculada — pra adicionar, remover ou ajustar quantidades, edite em{" "}
+                <Link href="/calculadora/receitas" className="font-bold text-terracota hover:underline">
+                  Calculadora → Receitas prontas
+                </Link>
+                .
+              </p>
+            </>
+          ) : (
+            <>
+              <ul className="mb-4 space-y-2 text-sm">
+                {ingredientesDoProduto.length === 0 && <li className="text-texto-suave">Nenhum ingrediente adicionado.</li>}
+                {ingredientesDoProduto.map((i) => {
+                  const removerEsteIngrediente = removerIngredienteReceita.bind(null, produtoId, i.id);
+                  return (
+                    <li key={i.id} className="flex items-center justify-between rounded-xl bg-painel-claro px-3 py-2">
+                      <span>
+                        {i.nome} — {i.quantidade} {i.unidade}
+                      </span>
+                      <form action={removerEsteIngrediente}>
+                        <button className="text-xs font-bold text-alerta hover:underline">remover</button>
+                      </form>
+                    </li>
+                  );
+                })}
+              </ul>
+              <form action={addIngrediente} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="min-w-0 flex-1">
+                  <CampoSelect
+                    name="ingredienteId"
+                    opcoes={todosIngredientes.map((i) => ({ valor: String(i.id), texto: `${i.nome} (${i.unidade})` }))}
+                  />
+                </div>
+                <Campo name="quantidade" type="number" step="any" placeholder="Qtd" className="w-full sm:w-24" />
+                <Botao type="submit" className="w-full sm:w-auto">
+                  + Adicionar
+                </Botao>
+              </form>
+            </>
+          )}
         </Cartao>
 
         <Cartao titulo="Embalagens usadas">
