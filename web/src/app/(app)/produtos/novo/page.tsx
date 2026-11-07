@@ -1,4 +1,5 @@
 import * as produtos from "@/lib/produtos";
+import * as receitasLib from "@/lib/receitas";
 import { criarProduto } from "../actions";
 import { Cartao } from "@/components/ui/Cartao";
 import { Campo, CampoArea, CampoSelect } from "@/components/ui/Campo";
@@ -6,6 +7,7 @@ import { Botao } from "@/components/ui/Botao";
 
 export default async function NovoProdutoPage() {
   const categorias = await produtos.listarCategorias();
+  const todasReceitas = await receitasLib.listarReceitas();
 
   return (
     <Cartao titulo="Novo produto" className="max-w-lg">
@@ -25,6 +27,14 @@ export default async function NovoProdutoPage() {
           <Campo rotulo="Preço de venda" name="preco" type="number" step="any" required />
           <Campo rotulo="Taxa utilidades (%)" name="taxaOverhead" type="number" step="any" defaultValue={10} />
         </div>
+        <CampoSelect
+          rotulo="Receita vinculada (opcional) — define o custo automaticamente"
+          name="receitaId"
+          opcoes={[
+            { valor: "", texto: "Nenhuma (usar ingredientes/embalagens abaixo depois de criar)" },
+            ...todasReceitas.map((r) => ({ valor: String(r.id), texto: r.nome })),
+          ]}
+        />
         <CampoArea rotulo="Descrição" name="descricao" rows={3} />
         <label className="flex items-center gap-2 text-sm text-texto">
           <input type="checkbox" name="disponivelNaCaixa" className="h-4 w-4 rounded border-borda" />

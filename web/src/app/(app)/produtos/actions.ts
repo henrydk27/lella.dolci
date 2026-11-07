@@ -19,6 +19,11 @@ function categoriaEscolhida(formData: FormData): string | null {
   return texto(formData, "novaCategoria") ?? texto(formData, "categoria");
 }
 
+function receitaEscolhida(formData: FormData): number | null {
+  const valor = String(formData.get("receitaId") ?? "").trim();
+  return valor === "" ? null : Number(valor);
+}
+
 export async function criarProduto(formData: FormData) {
   await produtos.adicionarProduto({
     nome: String(formData.get("nome") ?? "").trim(),
@@ -27,6 +32,7 @@ export async function criarProduto(formData: FormData) {
     categoria: categoriaEscolhida(formData),
     taxaOverhead: numero(formData, "taxaOverhead", 10),
     disponivelNaCaixa: formData.get("disponivelNaCaixa") === "on",
+    receitaId: receitaEscolhida(formData),
   });
   revalidatePath("/produtos");
   redirect("/produtos");
@@ -40,6 +46,7 @@ export async function atualizarProduto(id: number, formData: FormData) {
     categoria: categoriaEscolhida(formData),
     taxaOverhead: numero(formData, "taxaOverhead", 10),
     disponivelNaCaixa: formData.get("disponivelNaCaixa") === "on",
+    receitaId: receitaEscolhida(formData),
   });
   revalidatePath("/produtos");
   revalidatePath(`/produtos/${id}`);

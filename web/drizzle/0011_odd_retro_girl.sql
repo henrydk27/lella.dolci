@@ -1,0 +1,1 @@
+ALTER TABLE `produtos` ADD `receita_id` integer REFERENCES receitas(id) ON DELETE set null;

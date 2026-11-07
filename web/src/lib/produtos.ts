@@ -1,6 +1,15 @@
-import { eq, asc, isNotNull, sql } from "drizzle-orm";
+import { eq, asc, isNotNull, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { produtos, produtoIngredientes, produtoEmbalagens, ingredientes, embalagens, pedidoItens } from "@/db/schema";
+import {
+  produtos,
+  produtoIngredientes,
+  produtoEmbalagens,
+  ingredientes,
+  embalagens,
+  pedidoItens,
+  receitas,
+  receitaIngredientes,
+} from "@/db/schema";
 import { calcularCustoUnitario } from "./embalagens";
 
 export type Produto = typeof produtos.$inferSelect;
@@ -41,6 +50,7 @@ export async function adicionarProduto(dados: {
   categoria?: string | null;
   taxaOverhead?: number;
   disponivelNaCaixa?: boolean;
+  receitaId?: number | null;
 }) {
   const [row] = await db
     .insert(produtos)
@@ -58,6 +68,7 @@ export async function atualizarProduto(
     categoria?: string | null;
     taxaOverhead: number;
     disponivelNaCaixa: boolean;
+    receitaId?: number | null;
   }
 ) {
   await db.update(produtos).set(dados).where(eq(produtos.id, id));
@@ -149,12 +160,42 @@ export interface DetalheCusto {
   total: number;
 }
 
+// Quando o produto tem uma receita vinculada, o custo de ingredientes e a
+// taxa gas/luz/agua vem de la (ja dividido pelo rendimento da receita) em vez
+// da lista direta de produtoIngredientes - assim, editar a receita atualiza o
+// custo do produto automaticamente, sem precisar mexer em cada produto.
+async function custoIngredientesEOverheadViaReceita(
+  receitaId: number
+): Promise<{ ingredientes: number; overhead: number } | null> {
+  const [receita] = await db.select().from(receitas).where(eq(receitas.id, receitaId));
+  if (!receita) return null;
+  const [{ custo }] = await db
+    .select({ custo: sql<number>`COALESCE(SUM(${receitaIngredientes.gramasUsadas} * ${ingredientes.precoUnitario}), 0)` })
+    .from(receitaIngredientes)
+    .innerJoin(ingredientes, eq(ingredientes.id, receitaIngredientes.ingredienteId))
+    .where(eq(receitaIngredientes.receitaId, receitaId));
+  const rendimento = receita.rendimento || 1;
+  const ingredientesPorUnidade = custo / rendimento;
+  return { ingredientes: ingredientesPorUnidade, overhead: ingredientesPorUnidade * (receita.taxaOverhead / 100) };
+}
+
 export async function detalharCustoProduto(produtoId: number): Promise<DetalheCusto> {
   const produto = await buscarProduto(produtoId);
+  const custoEmbalagens = await calcularCustoEmbalagens(produtoId);
+
+  const viaReceita = produto?.receitaId ? await custoIngredientesEOverheadViaReceita(produto.receitaId) : null;
+  if (viaReceita) {
+    return {
+      ingredientes: viaReceita.ingredientes,
+      overhead: viaReceita.overhead,
+      embalagens: custoEmbalagens,
+      total: viaReceita.ingredientes + viaReceita.overhead + custoEmbalagens,
+    };
+  }
+
   const custoIngredientes = await calcularCustoIngredientes(produtoId);
   const taxa = produto?.taxaOverhead ?? 10;
   const custoOverhead = custoIngredientes * (taxa / 100);
-  const custoEmbalagens = await calcularCustoEmbalagens(produtoId);
   return {
     ingredientes: custoIngredientes,
     overhead: custoOverhead,
@@ -168,4 +209,85 @@ export async function calcularMargemProduto(produtoId: number, precoVenda: numbe
   const margemReais = precoVenda - detalhe.total;
   const margemPercentual = precoVenda ? (margemReais / precoVenda) * 100 : 0;
   return { margemReais, margemPercentual, custoTotal: detalhe.total };
+}
+
+export interface CustoResumoProduto {
+  custoTotal: number;
+  margemReais: number;
+  margemPercentual: number;
+}
+
+// Versao em lote de detalharCustoProduto + calcularMargemProduto, usada na
+// listagem de produtos - faz um punhado de consultas agregadas em vez de uma
+// consulta por produto (uma consulta por produto contra o Turso remoto fica
+// lento conforme o catalogo cresce).
+export async function mapaCustoDeTodosProdutos(): Promise<Map<number, CustoResumoProduto>> {
+  const todos = await listarProdutos();
+  if (todos.length === 0) return new Map();
+  const ids = todos.map((p) => p.id);
+  const receitaIds = Array.from(new Set(todos.map((p) => p.receitaId).filter((id): id is number => id != null)));
+
+  const linhasEmbalagens = await db
+    .select({
+      produtoId: produtoEmbalagens.produtoId,
+      custo: sql<number>`COALESCE(SUM(${produtoEmbalagens.quantidade} * (${embalagens.custoTotal} * 1.0 / NULLIF(${embalagens.rendimento}, 0))), 0)`,
+    })
+    .from(produtoEmbalagens)
+    .innerJoin(embalagens, eq(embalagens.id, produtoEmbalagens.embalagemId))
+    .where(inArray(produtoEmbalagens.produtoId, ids))
+    .groupBy(produtoEmbalagens.produtoId);
+  const mapaEmbalagens = new Map(linhasEmbalagens.map((l) => [l.produtoId, l.custo]));
+
+  const linhasIngredientesDiretos = await db
+    .select({
+      produtoId: produtoIngredientes.produtoId,
+      custo: sql<number>`COALESCE(SUM(${produtoIngredientes.quantidade} * ${ingredientes.precoUnitario}), 0)`,
+    })
+    .from(produtoIngredientes)
+    .innerJoin(ingredientes, eq(ingredientes.id, produtoIngredientes.ingredienteId))
+    .where(inArray(produtoIngredientes.produtoId, ids))
+    .groupBy(produtoIngredientes.produtoId);
+  const mapaIngredientesDiretos = new Map(linhasIngredientesDiretos.map((l) => [l.produtoId, l.custo]));
+
+  const mapaReceitas = new Map<number, { rendimento: number; taxaOverhead: number; custoIngredientes: number }>();
+  if (receitaIds.length > 0) {
+    const linhasReceitas = await db.select().from(receitas).where(inArray(receitas.id, receitaIds));
+    const linhasReceitaIngredientes = await db
+      .select({
+        receitaId: receitaIngredientes.receitaId,
+        custo: sql<number>`COALESCE(SUM(${receitaIngredientes.gramasUsadas} * ${ingredientes.precoUnitario}), 0)`,
+      })
+      .from(receitaIngredientes)
+      .innerJoin(ingredientes, eq(ingredientes.id, receitaIngredientes.ingredienteId))
+      .where(inArray(receitaIngredientes.receitaId, receitaIds))
+      .groupBy(receitaIngredientes.receitaId);
+    const mapaReceitaCustoIngredientes = new Map(linhasReceitaIngredientes.map((l) => [l.receitaId, l.custo]));
+    for (const r of linhasReceitas) {
+      mapaReceitas.set(r.id, {
+        rendimento: r.rendimento || 1,
+        taxaOverhead: r.taxaOverhead,
+        custoIngredientes: mapaReceitaCustoIngredientes.get(r.id) ?? 0,
+      });
+    }
+  }
+
+  const resultado = new Map<number, CustoResumoProduto>();
+  for (const p of todos) {
+    const embalagem = mapaEmbalagens.get(p.id) ?? 0;
+    let custoIngredientes: number;
+    let custoOverhead: number;
+    const receita = p.receitaId ? mapaReceitas.get(p.receitaId) : undefined;
+    if (receita) {
+      custoIngredientes = receita.custoIngredientes / receita.rendimento;
+      custoOverhead = custoIngredientes * (receita.taxaOverhead / 100);
+    } else {
+      custoIngredientes = mapaIngredientesDiretos.get(p.id) ?? 0;
+      custoOverhead = custoIngredientes * (p.taxaOverhead / 100);
+    }
+    const custoTotal = custoIngredientes + custoOverhead + embalagem;
+    const margemReais = p.preco - custoTotal;
+    const margemPercentual = p.preco ? (margemReais / p.preco) * 100 : 0;
+    resultado.set(p.id, { custoTotal, margemReais, margemPercentual });
+  }
+  return resultado;
 }

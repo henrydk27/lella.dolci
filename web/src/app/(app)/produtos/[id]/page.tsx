@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import * as produtos from "@/lib/produtos";
 import * as ingredientesLib from "@/lib/ingredientes";
 import * as embalagensLib from "@/lib/embalagens";
+import * as receitasLib from "@/lib/receitas";
 import {
   atualizarProduto,
   removerProduto,
@@ -28,6 +29,7 @@ export default async function EditarProdutoPage({
   if (!produto) notFound();
 
   const categorias = await produtos.listarCategorias();
+  const todasReceitas = await receitasLib.listarReceitas();
   const ingredientesReceita = await produtos.listarIngredientesDoProduto(produtoId);
   const embalagensReceita = await produtos.listarEmbalagensDoProduto(produtoId);
   const detalhe = await produtos.detalharCustoProduto(produtoId);
@@ -67,6 +69,15 @@ export default async function EditarProdutoPage({
               defaultValue={produto.taxaOverhead}
             />
           </div>
+          <CampoSelect
+            rotulo="Receita vinculada (opcional) — define o custo automaticamente"
+            name="receitaId"
+            defaultValue={produto.receitaId ? String(produto.receitaId) : ""}
+            opcoes={[
+              { valor: "", texto: "Nenhuma (usar os ingredientes/embalagens abaixo)" },
+              ...todasReceitas.map((r) => ({ valor: String(r.id), texto: r.nome })),
+            ]}
+          />
           <CampoArea rotulo="Descrição" name="descricao" defaultValue={produto.descricao ?? ""} rows={3} />
           <label className="flex items-center gap-2 text-sm text-texto">
             <input
@@ -79,6 +90,12 @@ export default async function EditarProdutoPage({
           </label>
           <Botao type="submit">Salvar</Botao>
         </form>
+        {produto.receitaId && (
+          <p className="mt-3 rounded-xl border border-borda bg-painel-claro px-4 py-3 text-xs text-texto-suave">
+            Este produto está usando o custo da receita vinculada — a lista de ingredientes abaixo fica guardada,
+            mas não entra na conta do custo enquanto a receita estiver vinculada.
+          </p>
+        )}
         {erro === "tem-pedidos" && (
           <p className="mt-3 rounded-xl border border-alerta/40 bg-alerta/10 px-4 py-3 text-sm text-alerta">
             Este produto não pode ser removido porque já existem pedidos com ele — removê-lo apagaria esse histórico

@@ -35,6 +35,11 @@ export const produtos = sqliteTable("produtos", {
   // Marca os produtos que podem ser escolhidos como sabor ao montar uma caixa
   // fechada (brigadeiro, beijinho, cajuzinho etc) na tela de novo pedido.
   disponivelNaCaixa: integer("disponivel_na_caixa", { mode: "boolean" }).notNull().default(false),
+  // Receita do livro de receitas que define o custo deste produto. Quando
+  // preenchida, o custo do produto passa a ser calculado a partir dela (e
+  // atualiza sozinho quando a receita muda), em vez da lista direta de
+  // produtoIngredientes/produtoEmbalagens.
+  receitaId: integer("receita_id").references(() => receitas.id, { onDelete: "set null" }),
 });
 
 export const produtoIngredientes = sqliteTable("produto_ingredientes", {

@@ -64,8 +64,8 @@ export function TabelaLinha({ children }: { children: ReactNode }) {
   return <tr className="border-t border-borda/60 hover:bg-selecao">{children}</tr>;
 }
 
-export function TabelaCelula({ children }: { children: ReactNode }) {
-  return <td className="whitespace-nowrap px-4 py-3">{children}</td>;
+export function TabelaCelula({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <td className={`whitespace-nowrap px-4 py-3 ${className}`}>{children}</td>;
 }
 
 export function TabelaVazia({ colunas, texto }: { colunas: number; texto: string }) {
