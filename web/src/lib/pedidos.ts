@@ -1,6 +1,6 @@
 import { eq, desc, asc, and, gte, lte, sql, ne, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { pedidos, pedidoItens, produtos, clientes, STATUS_PEDIDO, TIPOS_PEDIDO } from "@/db/schema";
+import { pedidos, pedidoItens, produtos, clientes, pagamentos, STATUS_PEDIDO, TIPOS_PEDIDO } from "@/db/schema";
 import { ajustarEstoqueProduzido } from "./produtos";
 
 export { STATUS_PEDIDO, TIPOS_PEDIDO };
@@ -94,6 +94,35 @@ const selectPedidos = () =>
 
 export async function listarPedidos() {
   return selectPedidos().orderBy(desc(pedidos.dataPedido));
+}
+
+// Saldo ainda pendente (total do pedido menos o que ja foi recebido via
+// pagamentos, cobrindo pagamentos parciais) de cada pedido, numa consulta
+// agregada em lote por pedido - sem uma consulta por linha.
+export async function mapaPendentePorPedido(): Promise<Map<number, number>> {
+  const totaisItens = await db
+    .select({
+      pedidoId: pedidoItens.pedidoId,
+      custo: sql<number>`COALESCE(SUM(${pedidoItens.quantidade} * ${pedidoItens.precoUnitario}), 0)`,
+    })
+    .from(pedidoItens)
+    .groupBy(pedidoItens.pedidoId);
+  const totaisPagamentos = await db
+    .select({ pedidoId: pagamentos.pedidoId, total: sql<number>`COALESCE(SUM(${pagamentos.valor}), 0)` })
+    .from(pagamentos)
+    .groupBy(pagamentos.pedidoId);
+  const taxasEntrega = await db.select({ id: pedidos.id, taxaEntrega: pedidos.taxaEntrega }).from(pedidos);
+
+  const itensPorPedido = new Map(totaisItens.map((l) => [l.pedidoId, l.custo]));
+  const recebidoPorPedido = new Map(totaisPagamentos.map((l) => [l.pedidoId, l.total]));
+
+  const mapa = new Map<number, number>();
+  for (const p of taxasEntrega) {
+    const total = (itensPorPedido.get(p.id) ?? 0) + p.taxaEntrega;
+    const recebido = recebidoPorPedido.get(p.id) ?? 0;
+    mapa.set(p.id, total - recebido);
+  }
+  return mapa;
 }
 
 export async function buscarPedido(id: number) {

@@ -28,30 +28,32 @@ const COLUNAS_ORDENAVEIS: { campo: string; rotulo: string }[] = [
   { campo: "tipo", rotulo: "Tipo" },
   { campo: "data", rotulo: "Data" },
   { campo: "entrega", rotulo: "Entrega" },
-  { campo: "pagamento", rotulo: "Pagamento" },
+  { campo: "pendente", rotulo: "Pendente" },
   { campo: "status", rotulo: "Status" },
 ];
 const CAMPOS_VALIDOS = COLUNAS_ORDENAVEIS.map((c) => c.campo);
 
-function valorOrdenavel(p: Pedido, campo: string): string | number {
-  switch (campo) {
-    case "id":
-      return p.id;
-    case "cliente":
-      return (p.clienteNome ?? "").toLowerCase();
-    case "tipo":
-      return ROTULOS_TIPO[p.tipo] ?? p.tipo;
-    case "data":
-      return p.dataPedido;
-    case "entrega":
-      return p.dataEntrega ?? "";
-    case "pagamento":
-      return p.formaPagamento ?? "";
-    case "status":
-      return p.status;
-    default:
-      return "";
-  }
+function criarValorOrdenavel(pendentes: Map<number, number>) {
+  return function valorOrdenavel(p: Pedido, campo: string): string | number {
+    switch (campo) {
+      case "id":
+        return p.id;
+      case "cliente":
+        return (p.clienteNome ?? "").toLowerCase();
+      case "tipo":
+        return ROTULOS_TIPO[p.tipo] ?? p.tipo;
+      case "data":
+        return p.dataPedido;
+      case "entrega":
+        return p.dataEntrega ?? "";
+      case "pendente":
+        return pendentes.get(p.id) ?? 0;
+      case "status":
+        return p.status;
+      default:
+        return "";
+    }
+  };
 }
 
 export default async function PedidosPage({
@@ -61,13 +63,14 @@ export default async function PedidosPage({
 }) {
   const { tipo, ordenar, dir, buscar } = await searchParams;
   const todos = await pedidos.listarPedidos();
+  const pendentes = await pedidos.mapaPendentePorPedido();
   const filtradosPorTipo = tipo ? todos.filter((p) => p.tipo === tipo) : todos;
   const itens = filtradosPorTipo.filter((p) =>
-    correspondeBusca(buscar ?? "", String(p.id), p.clienteNome, ROTULOS_TIPO[p.tipo] ?? p.tipo, p.formaPagamento, p.status)
+    correspondeBusca(buscar ?? "", String(p.id), p.clienteNome, ROTULOS_TIPO[p.tipo] ?? p.tipo, p.status)
   );
 
   const { campoAtivo, direcao } = configurarOrdenacao(ordenar, dir, "data", CAMPOS_VALIDOS);
-  const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, valorOrdenavel);
+  const itensOrdenados = ordenarLista(itens, campoAtivo, direcao, criarValorOrdenavel(pendentes));
   const hrefOrdenar = (campo: string) =>
     gerarHrefOrdenar("/pedidos", { tipo, buscar }, campo, campoAtivo, direcao);
 
@@ -98,7 +101,7 @@ export default async function PedidosPage({
 
       <BarraBusca
         buscar={buscar}
-        placeholder="Buscar por cliente, tipo, pagamento ou status"
+        placeholder="Buscar por cliente, tipo ou status"
         camposOcultos={{ tipo, ordenar, dir }}
       />
 
@@ -119,7 +122,9 @@ export default async function PedidosPage({
               <TabelaCelula>{ROTULOS_TIPO[p.tipo] ?? p.tipo}</TabelaCelula>
               <TabelaCelula>{dataBr(p.dataPedido)}</TabelaCelula>
               <TabelaCelula>{p.dataEntrega ? p.dataEntrega.split("-").reverse().join("/") : "-"}</TabelaCelula>
-              <TabelaCelula>{p.formaPagamento ?? "-"}</TabelaCelula>
+              <TabelaCelula className={(pendentes.get(p.id) ?? 0) > 0.009 ? "font-bold text-alerta" : ""}>
+                R$ {(pendentes.get(p.id) ?? 0).toFixed(2)}
+              </TabelaCelula>
               <TabelaCelula>{p.status}</TabelaCelula>
               <TabelaCelula>
                 <Link href={`/pedidos/${p.id}`} className="font-bold text-terracota hover:underline">
