@@ -37,8 +37,6 @@ export default async function EditarProdutoPage({
     ? await receitasLib.listarIngredientesDaReceita(produto.receitaId)
     : [];
   const embalagensReceita = await produtos.listarEmbalagensDoProduto(produtoId);
-  const detalhe = await produtos.detalharCustoProduto(produtoId);
-  const margem = await produtos.calcularMargemProduto(produtoId, produto.preco);
 
   const todosIngredientes = await ingredientesLib.listarIngredientes();
   const todasEmbalagens = await embalagensLib.listarEmbalagens();
@@ -113,17 +111,6 @@ export default async function EditarProdutoPage({
             Remover produto
           </Botao>
         </form>
-
-        <div className="mt-6 space-y-1 border-t border-borda pt-4 text-sm">
-          <p className="font-bold text-terracota-vibrante">
-            Custo: ingredientes R$ {detalhe.ingredientes.toFixed(2)} + utilidades R$ {detalhe.overhead.toFixed(2)} +
-            embalagem R$ {detalhe.embalagens.toFixed(2)}
-          </p>
-          <p className="font-bold text-terracota-vibrante">Custo total: R$ {detalhe.total.toFixed(2)}</p>
-          <p className={`font-bold ${margem.margemReais >= 0 ? "text-terracota-vibrante" : "text-alerta"}`}>
-            Margem: R$ {margem.margemReais.toFixed(2)} ({margem.margemPercentual.toFixed(1)}%)
-          </p>
-        </div>
       </Cartao>
 
       <div className="space-y-6">
