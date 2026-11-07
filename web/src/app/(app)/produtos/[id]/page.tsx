@@ -64,13 +64,25 @@ export default async function EditarProdutoPage({
           />
           <div className="grid grid-cols-2 gap-3">
             <Campo rotulo="Preço de venda" name="preco" type="number" step="any" defaultValue={produto.preco} required />
-            <Campo
-              rotulo="Taxa utilidades (%)"
-              name="taxaOverhead"
-              type="number"
-              step="any"
-              defaultValue={produto.taxaOverhead}
-            />
+            {receitaVinculada ? (
+              <div>
+                <Campo
+                  rotulo="Taxa utilidades (%)"
+                  value={`${receitaVinculada.taxaOverhead} (da receita)`}
+                  disabled
+                  readOnly
+                />
+                <input type="hidden" name="taxaOverhead" value={produto.taxaOverhead} />
+              </div>
+            ) : (
+              <Campo
+                rotulo="Taxa utilidades (%)"
+                name="taxaOverhead"
+                type="number"
+                step="any"
+                defaultValue={produto.taxaOverhead}
+              />
+            )}
           </div>
           <CampoSelect
             rotulo="Receita vinculada (opcional) — define o custo automaticamente"
