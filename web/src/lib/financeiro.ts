@@ -1,18 +1,8 @@
 import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import {
-  pedidos,
-  pedidoItens,
-  produtos,
-  produtoIngredientes,
-  produtoEmbalagens,
-  ingredientes,
-  embalagens,
-  clientes,
-  pagamentos,
-  fechamentosMensais,
-} from "@/db/schema";
+import { pedidos, pedidoItens, produtos, clientes, pagamentos, fechamentosMensais } from "@/db/schema";
 import * as pagamentosLib from "./pagamentos";
+import { mapaCustoIngredientesEEmbalagens } from "./produtos";
 
 export const PERCENTUAL_RESERVA_DESPESAS = 0.1;
 export const PERCENTUAL_RESERVA_FINANCEIRA = 0.08;
@@ -74,43 +64,18 @@ async function buscarPedidosComItensPorIds(ids: number[]): Promise<PedidoComIten
 // utilidades/overhead do produto - essa, no Financeiro, vira a "Reserva de
 // despesas" calculada a parte, apenas sobre ingredientes).
 //
-// Duas consultas agregadas (uma para ingredientes, uma para embalagens),
-// nunca uma por produto: com centenas de pedidos/produtos, uma consulta por
-// produto para um banco remoto (Turso) facilmente estoura o tempo limite da
-// funcao na Vercel - foi exatamente isso que travava o Dashboard/Financeiro
-// em producao (rapido demais pra notar com o banco local).
+// Poucas consultas agregadas, nunca uma por produto: com centenas de
+// pedidos/produtos, uma consulta por produto para um banco remoto (Turso)
+// facilmente estoura o tempo limite da funcao na Vercel - foi exatamente
+// isso que travava o Dashboard/Financeiro em producao (rapido demais pra
+// notar com o banco local). O custo de ingredientes vem da receita
+// vinculada quando o produto tiver uma (senao da lista direta do produto) -
+// delegado pra produtos.ts, que e' a mesma logica usada na tela de Produtos.
 async function mapaCustoPorProduto(produtoIds: number[]): Promise<Map<number, { ingredientes: number; total: number }>> {
-  const unicos = Array.from(new Set(produtoIds));
+  const custos = await mapaCustoIngredientesEEmbalagens(produtoIds);
   const mapa = new Map<number, { ingredientes: number; total: number }>();
-  if (unicos.length === 0) return mapa;
-
-  const linhasIngredientes = await db
-    .select({
-      produtoId: produtoIngredientes.produtoId,
-      custo: sql<number>`COALESCE(SUM(${produtoIngredientes.quantidade} * ${ingredientes.precoUnitario}), 0)`,
-    })
-    .from(produtoIngredientes)
-    .innerJoin(ingredientes, eq(ingredientes.id, produtoIngredientes.ingredienteId))
-    .where(inArray(produtoIngredientes.produtoId, unicos))
-    .groupBy(produtoIngredientes.produtoId);
-
-  const linhasEmbalagens = await db
-    .select({
-      produtoId: produtoEmbalagens.produtoId,
-      custo: sql<number>`COALESCE(SUM(${produtoEmbalagens.quantidade} * (${embalagens.custoTotal} * 1.0 / NULLIF(${embalagens.rendimento}, 0))), 0)`,
-    })
-    .from(produtoEmbalagens)
-    .innerJoin(embalagens, eq(embalagens.id, produtoEmbalagens.embalagemId))
-    .where(inArray(produtoEmbalagens.produtoId, unicos))
-    .groupBy(produtoEmbalagens.produtoId);
-
-  const mapaIngredientes = new Map(linhasIngredientes.map((l) => [l.produtoId, l.custo]));
-  const mapaEmbalagens = new Map(linhasEmbalagens.map((l) => [l.produtoId, l.custo]));
-
-  for (const id of unicos) {
-    const ing = mapaIngredientes.get(id) ?? 0;
-    const emb = mapaEmbalagens.get(id) ?? 0;
-    mapa.set(id, { ingredientes: ing, total: ing + emb });
+  for (const [id, c] of custos) {
+    mapa.set(id, { ingredientes: c.ingredientes, total: c.ingredientes + c.embalagens });
   }
   return mapa;
 }

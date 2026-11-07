@@ -217,6 +217,76 @@ export interface CustoResumoProduto {
   margemPercentual: number;
 }
 
+export interface CustoIngredientesEEmbalagens {
+  ingredientes: number;
+  embalagens: number;
+}
+
+// Custo de ingredientes (via receita vinculada quando houver, senao a lista
+// direta do produto) + embalagens, sem a taxa de gas/luz/agua - usado pelo
+// Financeiro, que aplica sua propria reserva de despesas por cima. Separada
+// de mapaCustoDeTodosProdutos porque so precisa de alguns produtos (os que
+// aparecem num periodo), nao o catalogo inteiro.
+export async function mapaCustoIngredientesEEmbalagens(
+  produtoIds: number[]
+): Promise<Map<number, CustoIngredientesEEmbalagens>> {
+  const ids = Array.from(new Set(produtoIds));
+  const mapa = new Map<number, CustoIngredientesEEmbalagens>();
+  if (ids.length === 0) return mapa;
+
+  const todos = await db.select().from(produtos).where(inArray(produtos.id, ids));
+  const receitaIds = Array.from(new Set(todos.map((p) => p.receitaId).filter((id): id is number => id != null)));
+
+  const linhasEmbalagens = await db
+    .select({
+      produtoId: produtoEmbalagens.produtoId,
+      custo: sql<number>`COALESCE(SUM(${produtoEmbalagens.quantidade} * (${embalagens.custoTotal} * 1.0 / NULLIF(${embalagens.rendimento}, 0))), 0)`,
+    })
+    .from(produtoEmbalagens)
+    .innerJoin(embalagens, eq(embalagens.id, produtoEmbalagens.embalagemId))
+    .where(inArray(produtoEmbalagens.produtoId, ids))
+    .groupBy(produtoEmbalagens.produtoId);
+  const mapaEmbalagens = new Map(linhasEmbalagens.map((l) => [l.produtoId, l.custo]));
+
+  const linhasIngredientesDiretos = await db
+    .select({
+      produtoId: produtoIngredientes.produtoId,
+      custo: sql<number>`COALESCE(SUM(${produtoIngredientes.quantidade} * ${ingredientes.precoUnitario}), 0)`,
+    })
+    .from(produtoIngredientes)
+    .innerJoin(ingredientes, eq(ingredientes.id, produtoIngredientes.ingredienteId))
+    .where(inArray(produtoIngredientes.produtoId, ids))
+    .groupBy(produtoIngredientes.produtoId);
+  const mapaIngredientesDiretos = new Map(linhasIngredientesDiretos.map((l) => [l.produtoId, l.custo]));
+
+  const mapaReceitaIngredientesPorUnidade = new Map<number, number>();
+  if (receitaIds.length > 0) {
+    const linhasReceitas = await db.select().from(receitas).where(inArray(receitas.id, receitaIds));
+    const linhasReceitaIngredientes = await db
+      .select({
+        receitaId: receitaIngredientes.receitaId,
+        custo: sql<number>`COALESCE(SUM(${receitaIngredientes.gramasUsadas} * ${ingredientes.precoUnitario}), 0)`,
+      })
+      .from(receitaIngredientes)
+      .innerJoin(ingredientes, eq(ingredientes.id, receitaIngredientes.ingredienteId))
+      .where(inArray(receitaIngredientes.receitaId, receitaIds))
+      .groupBy(receitaIngredientes.receitaId);
+    const mapaReceitaCustoIngredientes = new Map(linhasReceitaIngredientes.map((l) => [l.receitaId, l.custo]));
+    for (const r of linhasReceitas) {
+      const custoTotal = mapaReceitaCustoIngredientes.get(r.id) ?? 0;
+      mapaReceitaIngredientesPorUnidade.set(r.id, custoTotal / (r.rendimento || 1));
+    }
+  }
+
+  for (const p of todos) {
+    const ingredientesCusto = p.receitaId
+      ? mapaReceitaIngredientesPorUnidade.get(p.receitaId) ?? 0
+      : mapaIngredientesDiretos.get(p.id) ?? 0;
+    mapa.set(p.id, { ingredientes: ingredientesCusto, embalagens: mapaEmbalagens.get(p.id) ?? 0 });
+  }
+  return mapa;
+}
+
 // Versao em lote de detalharCustoProduto + calcularMargemProduto, usada na
 // listagem de produtos - faz um punhado de consultas agregadas em vez de uma
 // consulta por produto (uma consulta por produto contra o Turso remoto fica
