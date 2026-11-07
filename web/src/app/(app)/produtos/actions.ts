@@ -26,6 +26,7 @@ export async function criarProduto(formData: FormData) {
     descricao: texto(formData, "descricao"),
     categoria: categoriaEscolhida(formData),
     taxaOverhead: numero(formData, "taxaOverhead", 10),
+    disponivelNaCaixa: formData.get("disponivelNaCaixa") === "on",
   });
   revalidatePath("/produtos");
   redirect("/produtos");
@@ -38,6 +39,7 @@ export async function atualizarProduto(id: number, formData: FormData) {
     descricao: texto(formData, "descricao"),
     categoria: categoriaEscolhida(formData),
     taxaOverhead: numero(formData, "taxaOverhead", 10),
+    disponivelNaCaixa: formData.get("disponivelNaCaixa") === "on",
   });
   revalidatePath("/produtos");
   revalidatePath(`/produtos/${id}`);

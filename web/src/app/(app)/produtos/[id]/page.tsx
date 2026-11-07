@@ -68,6 +68,15 @@ export default async function EditarProdutoPage({
             />
           </div>
           <CampoArea rotulo="Descrição" name="descricao" defaultValue={produto.descricao ?? ""} rows={3} />
+          <label className="flex items-center gap-2 text-sm text-texto">
+            <input
+              type="checkbox"
+              name="disponivelNaCaixa"
+              defaultChecked={produto.disponivelNaCaixa}
+              className="h-4 w-4 rounded border-borda"
+            />
+            Pode ser escolhido como sabor ao montar uma caixa (brigadeiro, beijinho, etc)
+          </label>
           <Botao type="submit">Salvar</Botao>
         </form>
         {erro === "tem-pedidos" && (

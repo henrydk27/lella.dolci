@@ -26,6 +26,10 @@ export default async function NovoProdutoPage() {
           <Campo rotulo="Taxa utilidades (%)" name="taxaOverhead" type="number" step="any" defaultValue={10} />
         </div>
         <CampoArea rotulo="Descrição" name="descricao" rows={3} />
+        <label className="flex items-center gap-2 text-sm text-texto">
+          <input type="checkbox" name="disponivelNaCaixa" className="h-4 w-4 rounded border-borda" />
+          Pode ser escolhido como sabor ao montar uma caixa (brigadeiro, beijinho, etc)
+        </label>
         <Botao type="submit">Salvar</Botao>
       </form>
     </Cartao>

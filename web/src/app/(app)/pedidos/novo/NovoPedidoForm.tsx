@@ -6,7 +6,7 @@ import { Campo, CampoSelect } from "@/components/ui/Campo";
 import { Botao } from "@/components/ui/Botao";
 import { Cartao } from "@/components/ui/Cartao";
 
-type Produto = { id: number; nome: string; preco: number; estoqueProduzido: number };
+type Produto = { id: number; nome: string; preco: number; estoqueProduzido: number; disponivelNaCaixa: boolean };
 
 const FORMAS_PAGAMENTO = ["", "pix", "dinheiro", "cartao_debito", "cartao_credito", "outro"];
 
@@ -52,8 +52,8 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
     [prontaEntrega, produtos]
   );
 
-  const brigadeiros = useMemo(
-    () => produtosDisponiveis.filter((p) => p.nome.trim().toLowerCase().startsWith("brigadeiro")),
+  const saboresCaixa = useMemo(
+    () => produtosDisponiveis.filter((p) => p.disponivelNaCaixa),
     [produtosDisponiveis]
   );
 
@@ -71,8 +71,8 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
   }, [tipo]);
 
   useEffect(() => {
-    setSaborSelecionado(brigadeiros[0]?.id ?? 0);
-  }, [brigadeiros]);
+    setSaborSelecionado(saboresCaixa[0]?.id ?? 0);
+  }, [saboresCaixa]);
 
   function quantidadeJaNoCarrinho(produtoId: number) {
     return itens.filter((i) => i.produtoId === produtoId).reduce((soma, i) => soma + i.quantidade, 0);
@@ -111,7 +111,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
 
   function adicionarSaborNaCaixa() {
     setErroCaixa("");
-    const produto = brigadeiros.find((p) => p.id === saborSelecionado);
+    const produto = saboresCaixa.find((p) => p.id === saborSelecionado);
     if (!produto) return;
 
     const atual = slotsRef.current;
@@ -158,10 +158,10 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
       contagem.set(produtoId, (contagem.get(produtoId) ?? 0) + 1);
     }
     return [...contagem.entries()].map(([produtoId, quantidade]) => {
-      const produto = brigadeiros.find((p) => p.id === produtoId)!;
+      const produto = saboresCaixa.find((p) => p.id === produtoId)!;
       return { produtoId, nome: produto.nome, quantidade, precoUnitario: precoPorUnidade };
     });
-  }, [slots, brigadeiros, tamanhoCaixa, precoTotalCaixa]);
+  }, [slots, saboresCaixa, tamanhoCaixa, precoTotalCaixa]);
 
   const caixaIncompleta = slots.length > 0 && slots.some((s) => s === null);
   const todosOsItens = [...itens, ...itensDaCaixa];
@@ -334,15 +334,16 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
             Preço da caixa fechada: <strong className="text-terracota-vibrante">R$ {precoTotalCaixa.toFixed(2)}</strong>
             , não importa a combinação de sabores.
           </p>
-          {brigadeiros.length === 0 ? (
+          {saboresCaixa.length === 0 ? (
             <p className="text-sm text-texto-suave">
-              Nenhum sabor de brigadeiro disponível{prontaEntrega ? " em estoque" : ""}.
+              Nenhum sabor disponível para caixa{prontaEntrega ? " em estoque" : ""}. Marque os produtos em
+              &quot;Produtos&quot; com a opção &quot;Pode ser escolhido como sabor ao montar uma caixa&quot;.
             </p>
           ) : (
             <>
               <div className={`mb-3 grid gap-3 ${slots.length === 6 ? "grid-cols-3" : "grid-cols-2"}`}>
                 {slots.map((produtoId, indice) => {
-                  const produto = brigadeiros.find((p) => p.id === produtoId);
+                  const produto = saboresCaixa.find((p) => p.id === produtoId);
                   return (
                     <button
                       key={indice}
@@ -355,7 +356,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
                           : "border border-dashed border-borda text-texto-suave"
                       }`}
                     >
-                      {produto ? produto.nome.replace(/^brigadeiro\s*/i, "") || "Brigadeiro" : "vazio"}
+                      {produto ? produto.nome.replace(/^brigadeiro\s*/i, "") || produto.nome : "vazio"}
                     </button>
                   );
                 })}
@@ -367,7 +368,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
                   onChange={(e) => setSaborSelecionado(Number(e.target.value))}
                   className="min-w-0 flex-1 rounded-full border border-borda bg-white px-3 py-2 text-sm"
                 >
-                  {brigadeiros.map((p) => (
+                  {saboresCaixa.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.nome}
                     </option>

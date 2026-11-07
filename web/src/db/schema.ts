@@ -32,6 +32,9 @@ export const produtos = sqliteTable("produtos", {
   // Estoque de produto ja pronto (producao concluida no planejador), separado
   // do estoque de ingredientes (materia-prima).
   estoqueProduzido: real("estoque_produzido").notNull().default(0),
+  // Marca os produtos que podem ser escolhidos como sabor ao montar uma caixa
+  // fechada (brigadeiro, beijinho, cajuzinho etc) na tela de novo pedido.
+  disponivelNaCaixa: integer("disponivel_na_caixa", { mode: "boolean" }).notNull().default(false),
 });
 
 export const produtoIngredientes = sqliteTable("produto_ingredientes", {

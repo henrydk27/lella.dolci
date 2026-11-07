@@ -8,7 +8,13 @@ export default async function NovoPedidoPage() {
 
   return (
     <NovoPedidoForm
-      produtos={listaProdutos.map((p) => ({ id: p.id, nome: p.nome, preco: p.preco, estoqueProduzido: p.estoqueProduzido }))}
+      produtos={listaProdutos.map((p) => ({
+        id: p.id,
+        nome: p.nome,
+        preco: p.preco,
+        estoqueProduzido: p.estoqueProduzido,
+        disponivelNaCaixa: p.disponivelNaCaixa,
+      }))}
       nomesClientes={listaClientes.map((c) => c.nome)}
     />
   );

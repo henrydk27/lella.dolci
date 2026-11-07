@@ -40,6 +40,7 @@ export async function adicionarProduto(dados: {
   descricao?: string | null;
   categoria?: string | null;
   taxaOverhead?: number;
+  disponivelNaCaixa?: boolean;
 }) {
   const [row] = await db
     .insert(produtos)
@@ -50,7 +51,14 @@ export async function adicionarProduto(dados: {
 
 export async function atualizarProduto(
   id: number,
-  dados: { nome: string; preco: number; descricao?: string | null; categoria?: string | null; taxaOverhead: number }
+  dados: {
+    nome: string;
+    preco: number;
+    descricao?: string | null;
+    categoria?: string | null;
+    taxaOverhead: number;
+    disponivelNaCaixa: boolean;
+  }
 ) {
   await db.update(produtos).set(dados).where(eq(produtos.id, id));
 }
