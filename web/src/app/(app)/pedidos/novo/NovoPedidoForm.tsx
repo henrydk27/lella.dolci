@@ -5,7 +5,7 @@ import { criarPedido } from "../actions";
 import { Campo, CampoSelect } from "@/components/ui/Campo";
 import { Botao } from "@/components/ui/Botao";
 import { Cartao } from "@/components/ui/Cartao";
-import { OPCOES_CAIXA, tamanhoDaCaixa, PRECO_CAIXA, precoPorUnidadeDaCaixa } from "@/lib/caixas";
+import { OPCOES_CAIXA, tamanhoDaCaixa, precoTotalDaCaixa, precoPorUnidadeDaCaixa } from "@/lib/caixas";
 
 type Produto = { id: number; nome: string; preco: number; estoqueProduzido: number; disponivelNaCaixa: boolean };
 
@@ -22,7 +22,7 @@ type ItemPedido = {
   quantidade: number;
   precoUnitario: number;
   daCaixa?: boolean;
-  tamanhoCaixa?: number;
+  caixaValor?: string;
 };
 
 export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[]; nomesClientes: string[] }) {
@@ -108,14 +108,14 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
   }
 
   const tamanhoCaixa = tamanhoDaCaixa(caixaValor);
-  const precoTotalCaixa = PRECO_CAIXA[tamanhoCaixa] ?? 0;
+  const precoTotalCaixa = precoTotalDaCaixa(caixaValor);
 
   // Quando o ultimo espaco da caixa e' preenchido, os sabores escolhidos
   // viram itens do pedido na hora (como se tivesse clicado "+ Adicionar"
   // manualmente) e a caixa zera sozinha, liberando pra montar outra em
   // seguida - antes so dava pra montar uma caixa por pedido.
   function fecharCaixaCompleta(slotsPreenchidos: number[]) {
-    const precoPorUnidade = precoPorUnidadeDaCaixa(tamanhoCaixa);
+    const precoPorUnidade = precoPorUnidadeDaCaixa(caixaValor);
     const contagem = new Map<number, number>();
     for (const produtoId of slotsPreenchidos) {
       contagem.set(produtoId, (contagem.get(produtoId) ?? 0) + 1);
@@ -128,7 +128,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
         quantidade,
         precoUnitario: precoPorUnidade,
         daCaixa: true,
-        tamanhoCaixa,
+        caixaValor,
       };
     });
     setItens((atual) => [...atual, ...novosItens]);
@@ -185,7 +185,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
     // fazia o total da caixa fechar errado (ex: 14/6 vira 2,33, e 6x2,33 =
     // 13,98 em vez de 14,00). O arredondamento pra exibicao fica por conta
     // do toFixed(2) de cada tela.
-    const precoPorUnidade = precoPorUnidadeDaCaixa(tamanhoCaixa);
+    const precoPorUnidade = precoPorUnidadeDaCaixa(caixaValor);
     const contagem = new Map<number, number>();
     for (const produtoId of slots) {
       if (produtoId === null) continue;
@@ -199,10 +199,10 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
         quantidade,
         precoUnitario: precoPorUnidade,
         daCaixa: true,
-        tamanhoCaixa,
+        caixaValor,
       };
     });
-  }, [slots, saboresCaixa, tamanhoCaixa, precoTotalCaixa]);
+  }, [slots, saboresCaixa, caixaValor]);
 
   const caixaIncompleta = slots.length > 0 && slots.some((s) => s === null);
   const todosOsItens = [...itens, ...itensDaCaixa];
@@ -224,7 +224,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
             produtoId: i.produtoId,
             quantidade: i.quantidade,
             daCaixa: i.daCaixa,
-            tamanhoCaixa: i.tamanhoCaixa,
+            caixaValor: i.caixaValor,
           }))
         )}
       />
@@ -287,8 +287,8 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
             className="w-full rounded-full border border-borda bg-painel-claro px-4 py-2 text-sm"
           >
             {OPCOES_CAIXA.map((o) => (
-              <option key={o} value={o}>
-                {o || "-"}
+              <option key={o.valor} value={o.valor}>
+                {o.valor || "-"}
               </option>
             ))}
           </select>
