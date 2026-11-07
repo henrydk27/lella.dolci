@@ -71,6 +71,13 @@
       "when": 1794061407972,
       "tag": "0009_colorful_typhoid_mary",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794063020151,
+      "tag": "0010_pale_risque",
+      "breakpoints": true
     }
   ]
 }

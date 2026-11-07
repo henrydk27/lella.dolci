@@ -84,6 +84,14 @@ async function CardReceita({
           <strong className="text-texto">R$ {custo.custoIngredientes.toFixed(2)}</strong>
         </p>
         <p>
+          <span className="text-texto-suave">Taxa gás/luz/água ({receita.taxaOverhead}%): </span>
+          <strong className="text-texto">R$ {custo.custoOverhead.toFixed(2)}</strong>
+        </p>
+        <p>
+          <span className="text-texto-suave">Custo total: </span>
+          <strong className="text-texto">R$ {custo.custoTotal.toFixed(2)}</strong>
+        </p>
+        <p>
           <span className="text-texto-suave">Preço por unidade: </span>
           <strong className="text-terracota-vibrante">R$ {custo.precoPorUnidade.toFixed(2)}</strong>
         </p>
@@ -112,6 +120,13 @@ async function CardReceita({
             defaultValue={receita.pesoUnidadeGramas ?? ""}
           />
         </div>
+        <Campo
+          rotulo="Taxa gás/luz/água (%)"
+          name="taxaOverhead"
+          type="number"
+          step="any"
+          defaultValue={receita.taxaOverhead}
+        />
         <CampoArea rotulo="Observações" name="observacoes" defaultValue={receita.observacoes ?? ""} rows={2} />
         <Botao type="submit" variante="fantasma">
           Salvar
@@ -160,6 +175,7 @@ export default async function CalculadoraReceitasPage() {
             <Campo rotulo="Rendimento (unidades)" name="rendimento" type="number" step="any" defaultValue={1} />
             <Campo rotulo="Peso por unidade (g) — opcional" name="pesoUnidadeGramas" type="number" step="any" />
           </div>
+          <Campo rotulo="Taxa gás/luz/água (%)" name="taxaOverhead" type="number" step="any" defaultValue={10} />
           <CampoArea rotulo="Observações" name="observacoes" rows={2} />
           <Botao type="submit">+ Criar receita</Botao>
         </form>

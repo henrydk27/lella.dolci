@@ -21,6 +21,7 @@ interface DadosReceita {
   pesoUnidadeGramas?: number | null;
   rendimento: number;
   observacoes?: string | null;
+  taxaOverhead?: number;
 }
 
 export async function adicionarReceita(dados: DadosReceita) {
@@ -59,6 +60,8 @@ export async function removerIngredienteDaReceita(relacaoId: number) {
 
 export interface CustoReceita {
   custoIngredientes: number;
+  custoOverhead: number;
+  custoTotal: number;
   precoPorUnidade: number;
 }
 
@@ -70,6 +73,9 @@ export async function calcularCustoReceita(receitaId: number): Promise<CustoRece
   const custoIngredientes = itens.reduce((total, i) => total + i.gramasUsadas * i.precoPorGrama, 0);
   const receita = await buscarReceita(receitaId);
   const rendimento = receita?.rendimento ?? 0;
-  const precoPorUnidade = rendimento > 0 ? custoIngredientes / rendimento : 0;
-  return { custoIngredientes, precoPorUnidade };
+  const taxa = receita?.taxaOverhead ?? 10;
+  const custoOverhead = custoIngredientes * (taxa / 100);
+  const custoTotal = custoIngredientes + custoOverhead;
+  const precoPorUnidade = rendimento > 0 ? custoTotal / rendimento : 0;
+  return { custoIngredientes, custoOverhead, custoTotal, precoPorUnidade };
 }

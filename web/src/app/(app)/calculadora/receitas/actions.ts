@@ -18,6 +18,7 @@ export async function criarReceita(formData: FormData) {
     pesoUnidadeGramas: pesoUnidadeBruto ? Number(pesoUnidadeBruto) : null,
     rendimento: Number(formData.get("rendimento") ?? 1) || 1,
     observacoes: texto(formData, "observacoes"),
+    taxaOverhead: Number(formData.get("taxaOverhead") ?? 10) || 0,
   });
   revalidatePath("/calculadora/receitas");
 }
@@ -31,6 +32,7 @@ export async function atualizarReceita(id: number, formData: FormData) {
     pesoUnidadeGramas: pesoUnidadeBruto ? Number(pesoUnidadeBruto) : null,
     rendimento: Number(formData.get("rendimento") ?? 1) || 1,
     observacoes: texto(formData, "observacoes"),
+    taxaOverhead: Number(formData.get("taxaOverhead") ?? 10) || 0,
   });
   revalidatePath("/calculadora/receitas");
 }

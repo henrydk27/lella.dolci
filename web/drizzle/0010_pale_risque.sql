@@ -1,0 +1,1 @@
+ALTER TABLE `receitas` ADD `taxa_overhead` real DEFAULT 10 NOT NULL;

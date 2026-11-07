@@ -108,6 +108,9 @@ export const receitas = sqliteTable("receitas", {
   pesoUnidadeGramas: real("peso_unidade_gramas"),
   rendimento: real("rendimento").notNull().default(1),
   observacoes: text("observacoes"),
+  // Taxa de gas/luz/agua: percentual somado sobre o custo dos ingredientes,
+  // igual ja funciona em Produtos (taxaOverhead).
+  taxaOverhead: real("taxa_overhead").notNull().default(10),
 });
 
 export const receitaIngredientes = sqliteTable("receita_ingredientes", {
