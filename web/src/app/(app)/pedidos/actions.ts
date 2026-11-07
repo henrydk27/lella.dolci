@@ -6,6 +6,7 @@ import * as pedidos from "@/lib/pedidos";
 import * as clientes from "@/lib/clientes";
 import * as produtos from "@/lib/produtos";
 import * as pagamentosLib from "@/lib/pagamentos";
+import { PRECO_CAIXA, precoPorUnidadeDaCaixa } from "@/lib/caixas";
 
 function texto(formData: FormData, campo: string): string | null {
   const valor = String(formData.get(campo) ?? "").trim();
@@ -20,16 +21,23 @@ export async function criarPedido(formData: FormData) {
   const itensBrutos = JSON.parse(String(formData.get("itensJson") ?? "[]")) as {
     produtoId: number;
     quantidade: number;
+    daCaixa?: boolean;
+    tamanhoCaixa?: number;
   }[];
   if (itensBrutos.length === 0) throw new Error("Adicione ao menos um item ao pedido.");
 
   // O preco de cada item vem do cadastro atual do produto, nunca do cliente,
-  // para nao permitir que um pedido seja criado com um preco fabricado.
+  // para nao permitir que um pedido seja criado com um preco fabricado. Um
+  // item vindo de uma caixa fechada e' excecao: usa o preco rateado da caixa
+  // (tambem recalculado aqui, nunca confiando no valor que o navegador
+  // mandou), que e' menor que o preco avulso do sabor.
   const itens = [];
   for (const item of itensBrutos) {
     const produto = await produtos.buscarProduto(item.produtoId);
     if (!produto) continue;
-    itens.push({ produtoId: produto.id, quantidade: item.quantidade, precoUnitario: produto.preco });
+    const tamanhoCaixaValido = item.daCaixa && item.tamanhoCaixa && PRECO_CAIXA[item.tamanhoCaixa] ? item.tamanhoCaixa : null;
+    const precoUnitario = tamanhoCaixaValido ? precoPorUnidadeDaCaixa(tamanhoCaixaValido) : produto.preco;
+    itens.push({ produtoId: produto.id, quantidade: item.quantidade, precoUnitario });
   }
   if (itens.length === 0) throw new Error("Nenhum item valido informado.");
 

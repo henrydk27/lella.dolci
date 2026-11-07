@@ -5,6 +5,7 @@ import { criarPedido } from "../actions";
 import { Campo, CampoSelect } from "@/components/ui/Campo";
 import { Botao } from "@/components/ui/Botao";
 import { Cartao } from "@/components/ui/Cartao";
+import { OPCOES_CAIXA, tamanhoDaCaixa, PRECO_CAIXA, precoPorUnidadeDaCaixa } from "@/lib/caixas";
 
 type Produto = { id: number; nome: string; preco: number; estoqueProduzido: number; disponivelNaCaixa: boolean };
 
@@ -15,19 +16,14 @@ const TIPOS_PEDIDO = [
   { valor: "pronta_entrega", texto: "Pronta entrega", descricao: "Produto ja pronto no estoque" },
 ];
 
-const OPCOES_CAIXA = ["", "Caixa com 4", "Caixa com 6"];
-
-function tamanhoDaCaixa(valor: string): number {
-  if (valor === "Caixa com 4") return 4;
-  if (valor === "Caixa com 6") return 6;
-  return 0;
-}
-
-// Preco fixo da caixa fechada, independente dos sabores escolhidos
-// (e' assim que sempre foi cobrado, visto no historico de vendas).
-const PRECO_CAIXA: Record<number, number> = { 4: 10, 6: 14 };
-
-type ItemPedido = { produtoId: number; nome: string; quantidade: number; precoUnitario: number; daCaixa?: boolean };
+type ItemPedido = {
+  produtoId: number;
+  nome: string;
+  quantidade: number;
+  precoUnitario: number;
+  daCaixa?: boolean;
+  tamanhoCaixa?: number;
+};
 
 export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[]; nomesClientes: string[] }) {
   const [itens, setItens] = useState<ItemPedido[]>([]);
@@ -119,14 +115,21 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
   // manualmente) e a caixa zera sozinha, liberando pra montar outra em
   // seguida - antes so dava pra montar uma caixa por pedido.
   function fecharCaixaCompleta(slotsPreenchidos: number[]) {
-    const precoPorUnidade = tamanhoCaixa > 0 ? precoTotalCaixa / tamanhoCaixa : 0;
+    const precoPorUnidade = precoPorUnidadeDaCaixa(tamanhoCaixa);
     const contagem = new Map<number, number>();
     for (const produtoId of slotsPreenchidos) {
       contagem.set(produtoId, (contagem.get(produtoId) ?? 0) + 1);
     }
     const novosItens: ItemPedido[] = [...contagem.entries()].map(([produtoId, quantidade]) => {
       const produto = saboresCaixa.find((p) => p.id === produtoId)!;
-      return { produtoId, nome: produto.nome, quantidade, precoUnitario: precoPorUnidade, daCaixa: true };
+      return {
+        produtoId,
+        nome: produto.nome,
+        quantidade,
+        precoUnitario: precoPorUnidade,
+        daCaixa: true,
+        tamanhoCaixa,
+      };
     });
     setItens((atual) => [...atual, ...novosItens]);
     setCaixasMontadas((atual) => [...atual, caixaValor]);
@@ -182,7 +185,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
     // fazia o total da caixa fechar errado (ex: 14/6 vira 2,33, e 6x2,33 =
     // 13,98 em vez de 14,00). O arredondamento pra exibicao fica por conta
     // do toFixed(2) de cada tela.
-    const precoPorUnidade = tamanhoCaixa > 0 ? precoTotalCaixa / tamanhoCaixa : 0;
+    const precoPorUnidade = precoPorUnidadeDaCaixa(tamanhoCaixa);
     const contagem = new Map<number, number>();
     for (const produtoId of slots) {
       if (produtoId === null) continue;
@@ -190,7 +193,14 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
     }
     return [...contagem.entries()].map(([produtoId, quantidade]) => {
       const produto = saboresCaixa.find((p) => p.id === produtoId)!;
-      return { produtoId, nome: produto.nome, quantidade, precoUnitario: precoPorUnidade };
+      return {
+        produtoId,
+        nome: produto.nome,
+        quantidade,
+        precoUnitario: precoPorUnidade,
+        daCaixa: true,
+        tamanhoCaixa,
+      };
     });
   }, [slots, saboresCaixa, tamanhoCaixa, precoTotalCaixa]);
 
@@ -209,7 +219,14 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
       <input
         type="hidden"
         name="itensJson"
-        value={JSON.stringify(todosOsItens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade })))}
+        value={JSON.stringify(
+          todosOsItens.map((i) => ({
+            produtoId: i.produtoId,
+            quantidade: i.quantidade,
+            daCaixa: i.daCaixa,
+            tamanhoCaixa: i.tamanhoCaixa,
+          }))
+        )}
       />
       <input type="hidden" name="caixa" value={resumoCaixas} />
 
