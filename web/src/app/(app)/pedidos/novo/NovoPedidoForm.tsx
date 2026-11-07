@@ -27,16 +27,17 @@ function tamanhoDaCaixa(valor: string): number {
 // (e' assim que sempre foi cobrado, visto no historico de vendas).
 const PRECO_CAIXA: Record<number, number> = { 4: 10, 6: 14 };
 
+type ItemPedido = { produtoId: number; nome: string; quantidade: number; precoUnitario: number; daCaixa?: boolean };
+
 export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[]; nomesClientes: string[] }) {
-  const [itens, setItens] = useState<{ produtoId: number; nome: string; quantidade: number; precoUnitario: number }[]>(
-    []
-  );
+  const [itens, setItens] = useState<ItemPedido[]>([]);
   const [quantidade, setQuantidade] = useState(1);
   const [tipo, setTipo] = useState("encomenda");
   const [erro, setErro] = useState("");
 
   const [caixaValor, setCaixaValor] = useState("");
   const [slots, setSlots] = useState<(number | null)[]>([]);
+  const [caixasMontadas, setCaixasMontadas] = useState<string[]>([]);
   const [saborSelecionado, setSaborSelecionado] = useState(0);
   const [erroCaixa, setErroCaixa] = useState("");
   // Evita ler um "slots" desatualizado quando o usuario clica em Adicionar
@@ -66,6 +67,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
     setCaixaValor("");
     slotsRef.current = [];
     setSlots([]);
+    setCaixasMontadas([]);
     setErroCaixa("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipo]);
@@ -109,6 +111,32 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
     setErroCaixa("");
   }
 
+  const tamanhoCaixa = tamanhoDaCaixa(caixaValor);
+  const precoTotalCaixa = PRECO_CAIXA[tamanhoCaixa] ?? 0;
+
+  // Quando o ultimo espaco da caixa e' preenchido, os sabores escolhidos
+  // viram itens do pedido na hora (como se tivesse clicado "+ Adicionar"
+  // manualmente) e a caixa zera sozinha, liberando pra montar outra em
+  // seguida - antes so dava pra montar uma caixa por pedido.
+  function fecharCaixaCompleta(slotsPreenchidos: number[]) {
+    const precoPorUnidade = tamanhoCaixa > 0 ? precoTotalCaixa / tamanhoCaixa : 0;
+    const contagem = new Map<number, number>();
+    for (const produtoId of slotsPreenchidos) {
+      contagem.set(produtoId, (contagem.get(produtoId) ?? 0) + 1);
+    }
+    const novosItens: ItemPedido[] = [...contagem.entries()].map(([produtoId, quantidade]) => {
+      const produto = saboresCaixa.find((p) => p.id === produtoId)!;
+      return { produtoId, nome: produto.nome, quantidade, precoUnitario: precoPorUnidade, daCaixa: true };
+    });
+    setItens((atual) => [...atual, ...novosItens]);
+    setCaixasMontadas((atual) => [...atual, caixaValor]);
+
+    slotsRef.current = [];
+    setSlots([]);
+    setCaixaValor("");
+    setErroCaixa("");
+  }
+
   function adicionarSaborNaCaixa() {
     setErroCaixa("");
     const produto = saboresCaixa.find((p) => p.id === saborSelecionado);
@@ -128,6 +156,12 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
 
     const copia = [...atual];
     copia[indiceVazio] = produto.id;
+
+    if (copia.every((s) => s !== null)) {
+      fecharCaixaCompleta(copia as number[]);
+      return;
+    }
+
     slotsRef.current = copia;
     setSlots(copia);
   }
@@ -138,9 +172,6 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
     slotsRef.current = copia;
     setSlots(copia);
   }
-
-  const tamanhoCaixa = tamanhoDaCaixa(caixaValor);
-  const precoTotalCaixa = PRECO_CAIXA[tamanhoCaixa] ?? 0;
 
   // Cada sabor escolhido na caixa vira um item do pedido, igual a adicionar
   // manualmente, mas rateando o preco fixo da caixa entre os espacos: o
@@ -167,6 +198,12 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
   const todosOsItens = [...itens, ...itensDaCaixa];
   const total = todosOsItens.reduce((soma, i) => soma + i.quantidade * i.precoUnitario, 0);
 
+  // Resumo das caixas ja fechadas neste pedido, pra guardar como texto no
+  // campo "caixa" do pedido (ex: "2x Caixa com 6, 1x Caixa com 4").
+  const resumoCaixas = [...caixasMontadas.reduce((mapa, c) => mapa.set(c, (mapa.get(c) ?? 0) + 1), new Map<string, number>())]
+    .map(([nome, qtd]) => (qtd > 1 ? `${qtd}x ${nome}` : nome))
+    .join(", ");
+
   return (
     <form action={criarPedido} className="flex flex-col items-start gap-6 lg:flex-row">
       <input
@@ -174,7 +211,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
         name="itensJson"
         value={JSON.stringify(todosOsItens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade })))}
       />
-      <input type="hidden" name="caixa" value={caixaValor} />
+      <input type="hidden" name="caixa" value={resumoCaixas} />
 
       <Cartao titulo="Novo pedido" className="w-full space-y-4 lg:max-w-xl">
       <input type="hidden" name="tipo" value={tipo} />
@@ -238,6 +275,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
               </option>
             ))}
           </select>
+          {resumoCaixas && <p className="mt-1 text-xs text-texto-suave">Já no pedido: {resumoCaixas}</p>}
         </div>
         <Campo rotulo="Taxa de entrega" name="taxaEntrega" type="number" step="any" defaultValue={0} />
       </div>
@@ -291,6 +329,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
                 <li key={indice} className="flex items-center justify-between rounded-xl bg-white px-3 py-2">
                   <span>
                     {item.quantidade}x {item.nome} — R$ {(item.quantidade * item.precoUnitario).toFixed(2)}
+                    {item.daCaixa && <span className="ml-2 text-xs text-texto-suave">(da caixa)</span>}
                   </span>
                   <button
                     type="button"
@@ -309,7 +348,7 @@ export function NovoPedidoForm({ produtos, nomesClientes }: { produtos: Produto[
                   <span>
                     {item.quantidade}x {item.nome} — R$ {(item.quantidade * item.precoUnitario).toFixed(2)}
                   </span>
-                  <span className="text-xs text-texto-suave">da caixa</span>
+                  <span className="text-xs text-texto-suave">montando a caixa...</span>
                 </li>
               ))}
             </ul>
