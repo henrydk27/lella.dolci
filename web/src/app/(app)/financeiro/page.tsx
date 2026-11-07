@@ -19,11 +19,26 @@ function dataBr(iso: string) {
   return iso.slice(0, 10).split("-").reverse().join("/");
 }
 
-function Linha({ rotulo, valor, destaque }: { rotulo: string; valor: string; destaque?: boolean }) {
+// tipo "lucro" sempre em verde (salvia) e "gasto" sempre em vermelho
+// (alerta), em qualquer card da tela - pra nunca ter duvida visual sobre o
+// que e' dinheiro ganho e o que e' dinheiro gasto.
+function Linha({
+  rotulo,
+  valor,
+  tipo = "neutro",
+  destaque,
+}: {
+  rotulo: string;
+  valor: string;
+  tipo?: "lucro" | "gasto" | "neutro";
+  destaque?: boolean;
+}) {
+  const cor =
+    tipo === "lucro" ? "text-salvia" : tipo === "gasto" ? "text-alerta" : destaque ? "text-terracota-vibrante" : "text-texto";
   return (
     <p className="flex items-center justify-between text-sm">
       <span className="text-texto-suave">{rotulo}</span>
-      <strong className={destaque ? "text-terracota-vibrante" : "text-texto"}>{valor}</strong>
+      <strong className={cor}>{valor}</strong>
     </p>
   );
 }
@@ -49,20 +64,25 @@ export default async function FinanceiroPage({
     : await financeiro.resumoPeriodo(inicio, fim);
 
   const distribuicao = fechamento
-    ? {
-        recebido: fechamento.recebido,
-        reservaDespesas: fechamento.reservaDespesas,
-        lucroDisponivel: fechamento.reservaFinanceira + fechamento.funcionariaMae + fechamento.proprietaria,
-        reservaFinanceira: fechamento.reservaFinanceira,
-        funcionariaMae: fechamento.funcionariaMae,
-        proprietaria: fechamento.proprietaria,
-        lucroRecebido: 0,
-        custoIngredientesRecebido: 0,
-      }
+    ? (() => {
+        const lucroDisponivel = fechamento.reservaFinanceira + fechamento.funcionariaMae + fechamento.proprietaria;
+        return {
+          recebido: fechamento.recebido,
+          reservaDespesas: fechamento.reservaDespesas,
+          lucroDisponivel,
+          reservaFinanceira: fechamento.reservaFinanceira,
+          funcionariaMae: fechamento.funcionariaMae,
+          proprietaria: fechamento.proprietaria,
+          lucroRecebido: lucroDisponivel + fechamento.reservaDespesas,
+          custoIngredientesRecebido: fechamento.reservaDespesas / financeiro.PERCENTUAL_RESERVA_DESPESAS,
+        };
+      })()
     : await financeiro.distribuicaoDinheiroRecebido(inicio, fim);
 
   const pendenteDoMes = await financeiro.pendenteDoPeriodoDeVenda(inicio, fim);
   const pendenteGeral = fechamento ? fechamento.pendente : await financeiro.pendenteGeral();
+
+  const resumoAno = await financeiro.resumoAno(ano);
 
   const atrasados = await financeiro.pedidosComSaldoPendente();
   const fechamentos = await financeiro.listarFechamentos();
@@ -118,58 +138,162 @@ export default async function FinanceiroPage({
         </div>
       </Cartao>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Cartao titulo="Lucro gerado (vendas realizadas)">
-          <p className="mb-3 text-xs text-texto-suave">
-            Resultado de tudo que foi vendido em {MESES[mes - 1]}, pago ou não.
-          </p>
-          <div className="space-y-1.5">
-            <Linha rotulo="Faturamento" valor={`R$ ${resumo.faturamento.toFixed(2)}`} />
-            <Linha rotulo="Custo de ingredientes e embalagens" valor={`R$ ${resumo.custoProdutos.toFixed(2)}`} />
-            <Linha rotulo="Lucro gerado" valor={`R$ ${resumo.lucroGerado.toFixed(2)}`} destaque />
-          </div>
-        </Cartao>
+      <div>
+        <h3 className="mb-3 font-titulo text-lg text-terracota-vibrante">{MESES[mes - 1]} de {ano}</h3>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Cartao titulo="Vendas do mês">
+            <p className="mb-3 text-xs text-texto-suave">
+              Resultado de tudo que foi vendido em {MESES[mes - 1]}, pago ou não.
+            </p>
+            <div className="space-y-1.5">
+              <Linha rotulo="Faturamento" valor={`R$ ${resumo.faturamento.toFixed(2)}`} />
+              <Linha
+                rotulo="Custo de ingredientes e embalagens"
+                valor={`R$ ${resumo.custoProdutos.toFixed(2)}`}
+                tipo="gasto"
+              />
+              <Linha rotulo="Lucro gerado" valor={`R$ ${resumo.lucroGerado.toFixed(2)}`} tipo="lucro" destaque />
+            </div>
+          </Cartao>
 
-        <Cartao titulo="Dinheiro recebido">
-          <p className="mb-3 text-xs text-texto-suave">
-            Valores que entraram de verdade em {MESES[mes - 1]} (pela data do pagamento, não da venda).
-          </p>
-          <div className="space-y-1.5">
-            <Linha rotulo="Recebido no mês" valor={`R$ ${distribuicao.recebido.toFixed(2)}`} destaque />
-            <Linha rotulo="Reserva de despesas (10% dos ingredientes)" valor={`R$ ${distribuicao.reservaDespesas.toFixed(2)}`} />
-            <Linha rotulo="Lucro disponível p/ distribuir" valor={`R$ ${distribuicao.lucroDisponivel.toFixed(2)}`} />
-          </div>
-        </Cartao>
+          <Cartao titulo="Dinheiro recebido">
+            <p className="mb-3 text-xs text-texto-suave">
+              Valores que entraram de verdade em {MESES[mes - 1]} (pela data do pagamento, não da venda).
+            </p>
+            <div className="space-y-1.5">
+              <Linha rotulo="Recebido no mês" valor={`R$ ${distribuicao.recebido.toFixed(2)}`} destaque />
+              <Linha
+                rotulo="Custo correspondente já recebido"
+                valor={`R$ ${distribuicao.custoIngredientesRecebido.toFixed(2)}`}
+                tipo="gasto"
+              />
+              <Linha rotulo="Lucro recebido" valor={`R$ ${distribuicao.lucroRecebido.toFixed(2)}`} tipo="lucro" />
+              <Linha
+                rotulo="Reserva de despesas (10% do custo recebido)"
+                valor={`R$ ${distribuicao.reservaDespesas.toFixed(2)}`}
+                tipo="gasto"
+              />
+              <Linha
+                rotulo="Lucro disponível p/ distribuir"
+                valor={`R$ ${distribuicao.lucroDisponivel.toFixed(2)}`}
+                tipo="lucro"
+                destaque
+              />
+            </div>
+          </Cartao>
 
-        <Cartao titulo="Dinheiro pendente">
-          <p className="mb-3 text-xs text-texto-suave">Valores ainda não recebidos, inclusive parciais.</p>
-          <div className="space-y-1.5">
-            <Linha rotulo="Vendas deste mês ainda não recebidas" valor={`R$ ${Math.max(pendenteDoMes, 0).toFixed(2)}`} />
-            <Linha rotulo="Saldo pendente total (todos os meses)" valor={`R$ ${Math.max(pendenteGeral, 0).toFixed(2)}`} destaque />
+          <Cartao titulo="Pendente">
+            <p className="mb-3 text-xs text-texto-suave">Valores ainda não recebidos, inclusive parciais.</p>
+            <div className="space-y-1.5">
+              <Linha rotulo="Vendas deste mês ainda não recebidas" valor={`R$ ${Math.max(pendenteDoMes, 0).toFixed(2)}`} />
+              <Linha
+                rotulo="Saldo pendente total (todos os meses)"
+                valor={`R$ ${Math.max(pendenteGeral, 0).toFixed(2)}`}
+                destaque
+              />
+            </div>
+          </Cartao>
+        </div>
+
+        <Cartao titulo="Distribuição do lucro disponível do mês" className="mt-6">
+          <p className="mb-3 text-sm text-texto-suave">
+            Calculada sobre o lucro já recebido em dinheiro (depois de separar a reserva de despesas) — nunca sobre o
+            faturamento.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-xl bg-painel-claro p-4">
+              <p className="text-xs font-bold uppercase text-texto-suave">Reserva financeira (8%)</p>
+              <p className="font-titulo text-xl text-salvia">R$ {distribuicao.reservaFinanceira.toFixed(2)}</p>
+            </div>
+            <div className="rounded-xl bg-painel-claro p-4">
+              <p className="text-xs font-bold uppercase text-texto-suave">Funcionária mãe (15%)</p>
+              <p className="font-titulo text-xl text-salvia">R$ {distribuicao.funcionariaMae.toFixed(2)}</p>
+            </div>
+            <div className="rounded-xl bg-painel-claro p-4">
+              <p className="text-xs font-bold uppercase text-texto-suave">Proprietária / reinvestimento (77%)</p>
+              <p className="font-titulo text-xl text-salvia">R$ {distribuicao.proprietaria.toFixed(2)}</p>
+            </div>
           </div>
         </Cartao>
       </div>
 
-      <Cartao titulo="Distribuição do lucro disponível">
-        <p className="mb-3 text-sm text-texto-suave">
-          Calculada sobre o lucro já recebido em dinheiro (depois de separar a reserva de despesas) — nunca sobre o
-          faturamento.
-        </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-xl bg-painel-claro p-4">
-            <p className="text-xs font-bold uppercase text-texto-suave">Reserva financeira (8%)</p>
-            <p className="font-titulo text-xl text-terracota-vibrante">R$ {distribuicao.reservaFinanceira.toFixed(2)}</p>
-          </div>
-          <div className="rounded-xl bg-painel-claro p-4">
-            <p className="text-xs font-bold uppercase text-texto-suave">Funcionária mãe (15%)</p>
-            <p className="font-titulo text-xl text-terracota-vibrante">R$ {distribuicao.funcionariaMae.toFixed(2)}</p>
-          </div>
-          <div className="rounded-xl bg-painel-claro p-4">
-            <p className="text-xs font-bold uppercase text-texto-suave">Proprietária / reinvestimento (77%)</p>
-            <p className="font-titulo text-xl text-terracota-vibrante">R$ {distribuicao.proprietaria.toFixed(2)}</p>
-          </div>
+      <div>
+        <h3 className="mb-3 font-titulo text-lg text-terracota-vibrante">Ano {ano} (geral)</h3>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Cartao titulo="Vendas do ano">
+            <p className="mb-3 text-xs text-texto-suave">
+              Resultado de tudo que foi vendido no ano de {ano}, pago ou não — soma dos 12 meses.
+            </p>
+            <div className="space-y-1.5">
+              <Linha rotulo="Faturamento" valor={`R$ ${resumoAno.faturamento.toFixed(2)}`} />
+              <Linha
+                rotulo="Custo de ingredientes e embalagens"
+                valor={`R$ ${resumoAno.custoProdutos.toFixed(2)}`}
+                tipo="gasto"
+              />
+              <Linha rotulo="Lucro gerado" valor={`R$ ${resumoAno.lucroGerado.toFixed(2)}`} tipo="lucro" destaque />
+            </div>
+          </Cartao>
+
+          <Cartao titulo="Dinheiro recebido no ano">
+            <p className="mb-3 text-xs text-texto-suave">
+              Valores que entraram de verdade em {ano} (pela data do pagamento, não da venda).
+            </p>
+            <div className="space-y-1.5">
+              <Linha rotulo="Recebido no ano" valor={`R$ ${resumoAno.recebido.toFixed(2)}`} destaque />
+              <Linha
+                rotulo="Custo correspondente já recebido"
+                valor={`R$ ${resumoAno.custoIngredientesRecebido.toFixed(2)}`}
+                tipo="gasto"
+              />
+              <Linha rotulo="Lucro recebido" valor={`R$ ${resumoAno.lucroRecebido.toFixed(2)}`} tipo="lucro" />
+              <Linha
+                rotulo="Reserva de despesas (10% do custo recebido)"
+                valor={`R$ ${resumoAno.reservaDespesas.toFixed(2)}`}
+                tipo="gasto"
+              />
+              <Linha
+                rotulo="Lucro disponível p/ distribuir"
+                valor={`R$ ${resumoAno.lucroDisponivel.toFixed(2)}`}
+                tipo="lucro"
+                destaque
+              />
+            </div>
+          </Cartao>
+
+          <Cartao titulo="Pendente no ano">
+            <p className="mb-3 text-xs text-texto-suave">Vendas de {ano} ainda não recebidas, inclusive parciais.</p>
+            <div className="space-y-1.5">
+              <Linha rotulo="Vendas deste ano ainda não recebidas" valor={`R$ ${Math.max(resumoAno.pendenteDoAno, 0).toFixed(2)}`} />
+              <Linha
+                rotulo="Saldo pendente total (todos os anos)"
+                valor={`R$ ${Math.max(pendenteGeral, 0).toFixed(2)}`}
+                destaque
+              />
+            </div>
+          </Cartao>
         </div>
-      </Cartao>
+
+        <Cartao titulo="Distribuição do lucro disponível do ano" className="mt-6">
+          <p className="mb-3 text-sm text-texto-suave">
+            Mesmo calculo de cima, somado para o ano inteiro.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-xl bg-painel-claro p-4">
+              <p className="text-xs font-bold uppercase text-texto-suave">Reserva financeira (8%)</p>
+              <p className="font-titulo text-xl text-salvia">R$ {resumoAno.reservaFinanceira.toFixed(2)}</p>
+            </div>
+            <div className="rounded-xl bg-painel-claro p-4">
+              <p className="text-xs font-bold uppercase text-texto-suave">Funcionária mãe (15%)</p>
+              <p className="font-titulo text-xl text-salvia">R$ {resumoAno.funcionariaMae.toFixed(2)}</p>
+            </div>
+            <div className="rounded-xl bg-painel-claro p-4">
+              <p className="text-xs font-bold uppercase text-texto-suave">Proprietária / reinvestimento (77%)</p>
+              <p className="font-titulo text-xl text-salvia">R$ {resumoAno.proprietaria.toFixed(2)}</p>
+            </div>
+          </div>
+        </Cartao>
+      </div>
 
       <Cartao titulo="Recebimentos atrasados">
         <p className="mb-3 text-sm text-texto-suave">

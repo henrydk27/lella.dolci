@@ -290,6 +290,94 @@ export async function pendenteDoPeriodoDeVenda(dataInicio: string, dataFim: stri
   return pendente;
 }
 
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+export interface ResumoAno {
+  faturamento: number;
+  custoProdutos: number;
+  lucroGerado: number;
+  recebido: number;
+  custoIngredientesRecebido: number;
+  lucroRecebido: number;
+  reservaDespesas: number;
+  lucroDisponivel: number;
+  reservaFinanceira: number;
+  funcionariaMae: number;
+  proprietaria: number;
+  pendenteDoAno: number;
+}
+
+// Mesma logica da pagina de um mes (fechamento congelado se existir, senao
+// calculado na hora), somada para os 12 meses do ano - assim o card do ano
+// bate exatamente com a soma do que cada mes mostraria se fosse aberto um
+// por um.
+export async function resumoAno(ano: number): Promise<ResumoAno> {
+  const totais: ResumoAno = {
+    faturamento: 0,
+    custoProdutos: 0,
+    lucroGerado: 0,
+    recebido: 0,
+    custoIngredientesRecebido: 0,
+    lucroRecebido: 0,
+    reservaDespesas: 0,
+    lucroDisponivel: 0,
+    reservaFinanceira: 0,
+    funcionariaMae: 0,
+    proprietaria: 0,
+    pendenteDoAno: 0,
+  };
+
+  for (let mes = 1; mes <= 12; mes++) {
+    const fechamento = await buscarFechamento(ano, mes);
+    if (fechamento) {
+      // O fechamento nao guarda custoIngredientesRecebido/lucroRecebido
+      // separados, mas da pra reconstituir a partir do que foi congelado:
+      // reservaDespesas = custoIngredientesRecebido * 10%, e lucroDisponivel
+      // = lucroRecebido - reservaDespesas.
+      const lucroDisponivel = fechamento.reservaFinanceira + fechamento.funcionariaMae + fechamento.proprietaria;
+      const custoIngredientesRecebido = fechamento.reservaDespesas / PERCENTUAL_RESERVA_DESPESAS;
+      totais.faturamento += fechamento.faturamento;
+      totais.custoProdutos += fechamento.custoProdutos;
+      totais.lucroGerado += fechamento.lucroGerado;
+      totais.recebido += fechamento.recebido;
+      totais.custoIngredientesRecebido += custoIngredientesRecebido;
+      totais.lucroRecebido += lucroDisponivel + fechamento.reservaDespesas;
+      totais.reservaDespesas += fechamento.reservaDespesas;
+      totais.lucroDisponivel += lucroDisponivel;
+      totais.reservaFinanceira += fechamento.reservaFinanceira;
+      totais.funcionariaMae += fechamento.funcionariaMae;
+      totais.proprietaria += fechamento.proprietaria;
+      totais.pendenteDoAno += fechamento.pendente;
+      continue;
+    }
+
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    const inicio = `${ano}-${pad(mes)}-01`;
+    const fim = `${ano}-${pad(mes)}-${pad(ultimoDia)}`;
+    const [resumo, distrib, pendenteMes] = await Promise.all([
+      resumoPeriodo(inicio, fim),
+      distribuicaoDinheiroRecebido(inicio, fim),
+      pendenteDoPeriodoDeVenda(inicio, fim),
+    ]);
+    totais.faturamento += resumo.faturamento;
+    totais.custoProdutos += resumo.custoProdutos;
+    totais.lucroGerado += resumo.lucroGerado;
+    totais.recebido += distrib.recebido;
+    totais.custoIngredientesRecebido += distrib.custoIngredientesRecebido;
+    totais.lucroRecebido += distrib.lucroRecebido;
+    totais.reservaDespesas += distrib.reservaDespesas;
+    totais.lucroDisponivel += distrib.lucroDisponivel;
+    totais.reservaFinanceira += distrib.reservaFinanceira;
+    totais.funcionariaMae += distrib.funcionariaMae;
+    totais.proprietaria += distrib.proprietaria;
+    totais.pendenteDoAno += pendenteMes;
+  }
+
+  return totais;
+}
+
 // Pedidos com saldo ainda nao recebido, ordenados do mais antigo pro mais
 // novo - para a lista de "Recebimentos atrasados" do Financeiro.
 export async function pedidosComSaldoPendente() {
