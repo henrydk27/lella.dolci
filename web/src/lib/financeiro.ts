@@ -13,6 +13,7 @@ interface PedidoComItens {
   id: number;
   dataPedido: string;
   taxaEntrega: number;
+  status: string;
   itens: { produtoId: number; quantidade: number; precoUnitario: number }[];
 }
 
@@ -20,7 +21,9 @@ export function totalPedidoLocal(p: PedidoComItens): number {
   return p.itens.reduce((soma, i) => soma + i.quantidade * i.precoUnitario, 0) + p.taxaEntrega;
 }
 
-async function anexarItens(linhasPedidos: { id: number; dataPedido: string; taxaEntrega: number }[]): Promise<PedidoComItens[]> {
+async function anexarItens(
+  linhasPedidos: { id: number; dataPedido: string; taxaEntrega: number; status: string }[]
+): Promise<PedidoComItens[]> {
   if (linhasPedidos.length === 0) return [];
   const ids = linhasPedidos.map((p) => p.id);
   const linhasItens = await db
@@ -45,7 +48,7 @@ async function anexarItens(linhasPedidos: { id: number; dataPedido: string; taxa
 
 async function buscarPedidosComItensNoPeriodo(dataInicio: string, dataFim: string): Promise<PedidoComItens[]> {
   const linhasPedidos = await db
-    .select({ id: pedidos.id, dataPedido: pedidos.dataPedido, taxaEntrega: pedidos.taxaEntrega })
+    .select({ id: pedidos.id, dataPedido: pedidos.dataPedido, taxaEntrega: pedidos.taxaEntrega, status: pedidos.status })
     .from(pedidos)
     .where(and(gte(pedidos.dataPedido, dataInicio), lte(pedidos.dataPedido, dataFim + " 23:59:59")));
   return anexarItens(linhasPedidos);
@@ -54,7 +57,7 @@ async function buscarPedidosComItensNoPeriodo(dataInicio: string, dataFim: strin
 async function buscarPedidosComItensPorIds(ids: number[]): Promise<PedidoComItens[]> {
   if (ids.length === 0) return [];
   const linhasPedidos = await db
-    .select({ id: pedidos.id, dataPedido: pedidos.dataPedido, taxaEntrega: pedidos.taxaEntrega })
+    .select({ id: pedidos.id, dataPedido: pedidos.dataPedido, taxaEntrega: pedidos.taxaEntrega, status: pedidos.status })
     .from(pedidos)
     .where(inArray(pedidos.id, ids));
   return anexarItens(linhasPedidos);
@@ -71,11 +74,13 @@ async function buscarPedidosComItensPorIds(ids: number[]): Promise<PedidoComIten
 // notar com o banco local). O custo de ingredientes vem da receita
 // vinculada quando o produto tiver uma (senao da lista direta do produto) -
 // delegado pra produtos.ts, que e' a mesma logica usada na tela de Produtos.
-async function mapaCustoPorProduto(produtoIds: number[]): Promise<Map<number, { ingredientes: number; total: number }>> {
+async function mapaCustoPorProduto(
+  produtoIds: number[]
+): Promise<Map<number, { ingredientes: number; overhead: number; total: number }>> {
   const custos = await mapaCustoIngredientesEEmbalagens(produtoIds);
-  const mapa = new Map<number, { ingredientes: number; total: number }>();
+  const mapa = new Map<number, { ingredientes: number; overhead: number; total: number }>();
   for (const [id, c] of custos) {
-    mapa.set(id, { ingredientes: c.ingredientes, total: c.ingredientes + c.embalagens });
+    mapa.set(id, { ingredientes: c.ingredientes, overhead: c.overhead, total: c.ingredientes + c.embalagens });
   }
   return mapa;
 }
@@ -100,13 +105,21 @@ export interface ResumoPeriodo {
   faturamento: number;
   custoIngredientes: number;
   custoProdutos: number;
+  custoOverhead: number;
   lucroGerado: number;
   quantidadePedidos: number;
 }
 
 // "Lucro gerado": resultado das vendas realizadas no periodo, descontando o
-// custo de ingredientes + embalagens, independente de ja terem sido pagas.
-export async function resumoPeriodo(dataInicio: string, dataFim: string, tipo?: string): Promise<ResumoPeriodo> {
+// custo de ingredientes + embalagens. Por padrao conta qualquer pedido do
+// periodo (pago ou nao); com apenasPagos, so os pedidos ja com status
+// "pago" entram na conta.
+export async function resumoPeriodo(
+  dataInicio: string,
+  dataFim: string,
+  tipo?: string,
+  apenasPagos = false
+): Promise<ResumoPeriodo> {
   let pedidosPeriodo = await buscarPedidosComItensNoPeriodo(dataInicio, dataFim);
   if (tipo) {
     const idsDoTipo = new Set(
@@ -119,6 +132,9 @@ export async function resumoPeriodo(dataInicio: string, dataFim: string, tipo?: 
     );
     pedidosPeriodo = pedidosPeriodo.filter((p) => idsDoTipo.has(p.id));
   }
+  if (apenasPagos) {
+    pedidosPeriodo = pedidosPeriodo.filter((p) => p.status === "pago");
+  }
 
   const produtoIds = pedidosPeriodo.flatMap((p) => p.itens.map((i) => i.produtoId));
   const custoMapa = await mapaCustoPorProduto(produtoIds);
@@ -126,12 +142,14 @@ export async function resumoPeriodo(dataInicio: string, dataFim: string, tipo?: 
   let faturamento = 0;
   let custoIngredientes = 0;
   let custoProdutos = 0;
+  let custoOverhead = 0;
   for (const p of pedidosPeriodo) {
     faturamento += totalPedidoLocal(p);
     for (const item of p.itens) {
       const custo = custoMapa.get(item.produtoId);
       custoIngredientes += (custo?.ingredientes ?? 0) * item.quantidade;
       custoProdutos += (custo?.total ?? 0) * item.quantidade;
+      custoOverhead += (custo?.overhead ?? 0) * item.quantidade;
     }
   }
 
@@ -139,6 +157,7 @@ export async function resumoPeriodo(dataInicio: string, dataFim: string, tipo?: 
     faturamento,
     custoIngredientes,
     custoProdutos,
+    custoOverhead,
     lucroGerado: faturamento - custoProdutos,
     quantidadePedidos: pedidosPeriodo.length,
   };
@@ -262,6 +281,7 @@ function pad(n: number): string {
 export interface ResumoAno {
   faturamento: number;
   custoProdutos: number;
+  custoOverhead: number;
   lucroGerado: number;
   recebido: number;
   custoIngredientesRecebido: number;
@@ -282,6 +302,7 @@ export async function resumoAno(ano: number): Promise<ResumoAno> {
   const totais: ResumoAno = {
     faturamento: 0,
     custoProdutos: 0,
+    custoOverhead: 0,
     lucroGerado: 0,
     recebido: 0,
     custoIngredientesRecebido: 0,
@@ -305,6 +326,7 @@ export async function resumoAno(ano: number): Promise<ResumoAno> {
       const custoIngredientesRecebido = fechamento.reservaDespesas / PERCENTUAL_RESERVA_DESPESAS;
       totais.faturamento += fechamento.faturamento;
       totais.custoProdutos += fechamento.custoProdutos;
+      totais.custoOverhead += fechamento.taxaGasLuzAgua;
       totais.lucroGerado += fechamento.lucroGerado;
       totais.recebido += fechamento.recebido;
       totais.custoIngredientesRecebido += custoIngredientesRecebido;
@@ -322,12 +344,13 @@ export async function resumoAno(ano: number): Promise<ResumoAno> {
     const inicio = `${ano}-${pad(mes)}-01`;
     const fim = `${ano}-${pad(mes)}-${pad(ultimoDia)}`;
     const [resumo, distrib, pendenteMes] = await Promise.all([
-      resumoPeriodo(inicio, fim),
+      resumoPeriodo(inicio, fim, undefined, true),
       distribuicaoDinheiroRecebido(inicio, fim),
       pendenteDoPeriodoDeVenda(inicio, fim),
     ]);
     totais.faturamento += resumo.faturamento;
     totais.custoProdutos += resumo.custoProdutos;
+    totais.custoOverhead += resumo.custoOverhead;
     totais.lucroGerado += resumo.lucroGerado;
     totais.recebido += distrib.recebido;
     totais.custoIngredientesRecebido += distrib.custoIngredientesRecebido;
@@ -386,6 +409,7 @@ export interface Fechamento {
   reservaFinanceira: number;
   funcionariaMae: number;
   proprietaria: number;
+  taxaGasLuzAgua: number;
 }
 
 export async function buscarFechamento(ano: number, mes: number) {

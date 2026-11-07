@@ -1,0 +1,1 @@
+ALTER TABLE `fechamentos_mensais` ADD `taxa_gas_luz_agua` real DEFAULT 0 NOT NULL;

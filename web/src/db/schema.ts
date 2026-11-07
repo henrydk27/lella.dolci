@@ -153,6 +153,9 @@ export const fechamentosMensais = sqliteTable("fechamentos_mensais", {
   reservaFinanceira: real("reserva_financeira").notNull(),
   funcionariaMae: real("funcionaria_mae").notNull(),
   proprietaria: real("proprietaria").notNull(),
+  // Taxa de gas/luz/agua gasta no mes (soma do overhead de cada produto
+  // vendido, vindo da receita vinculada ou do proprio produto).
+  taxaGasLuzAgua: real("taxa_gas_luz_agua").notNull().default(0),
   fechadoEm: text("fechado_em").notNull(),
 });
 

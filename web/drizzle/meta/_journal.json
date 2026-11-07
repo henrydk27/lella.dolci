@@ -85,6 +85,13 @@
       "when": 1794063688735,
       "tag": "0011_odd_retro_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794074780426,
+      "tag": "0012_bizarre_stature",
+      "breakpoints": true
     }
   ]
 }

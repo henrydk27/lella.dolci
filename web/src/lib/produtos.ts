@@ -220,12 +220,13 @@ export interface CustoResumoProduto {
 export interface CustoIngredientesEEmbalagens {
   ingredientes: number;
   embalagens: number;
+  overhead: number;
 }
 
 // Custo de ingredientes (via receita vinculada quando houver, senao a lista
-// direta do produto) + embalagens, sem a taxa de gas/luz/agua - usado pelo
-// Financeiro, que aplica sua propria reserva de despesas por cima. Separada
-// de mapaCustoDeTodosProdutos porque so precisa de alguns produtos (os que
+// direta do produto) + embalagens + taxa de gas/luz/agua (overhead, tambem
+// vinda da receita quando houver) - usado pelo Financeiro. Separada de
+// mapaCustoDeTodosProdutos porque so precisa de alguns produtos (os que
 // aparecem num periodo), nao o catalogo inteiro.
 export async function mapaCustoIngredientesEEmbalagens(
   produtoIds: number[]
@@ -259,7 +260,7 @@ export async function mapaCustoIngredientesEEmbalagens(
     .groupBy(produtoIngredientes.produtoId);
   const mapaIngredientesDiretos = new Map(linhasIngredientesDiretos.map((l) => [l.produtoId, l.custo]));
 
-  const mapaReceitaIngredientesPorUnidade = new Map<number, number>();
+  const mapaReceitaInfo = new Map<number, { ingredientesPorUnidade: number; taxaOverhead: number }>();
   if (receitaIds.length > 0) {
     const linhasReceitas = await db.select().from(receitas).where(inArray(receitas.id, receitaIds));
     const linhasReceitaIngredientes = await db
@@ -274,15 +275,22 @@ export async function mapaCustoIngredientesEEmbalagens(
     const mapaReceitaCustoIngredientes = new Map(linhasReceitaIngredientes.map((l) => [l.receitaId, l.custo]));
     for (const r of linhasReceitas) {
       const custoTotal = mapaReceitaCustoIngredientes.get(r.id) ?? 0;
-      mapaReceitaIngredientesPorUnidade.set(r.id, custoTotal / (r.rendimento || 1));
+      mapaReceitaInfo.set(r.id, {
+        ingredientesPorUnidade: custoTotal / (r.rendimento || 1),
+        taxaOverhead: r.taxaOverhead,
+      });
     }
   }
 
   for (const p of todos) {
-    const ingredientesCusto = p.receitaId
-      ? mapaReceitaIngredientesPorUnidade.get(p.receitaId) ?? 0
-      : mapaIngredientesDiretos.get(p.id) ?? 0;
-    mapa.set(p.id, { ingredientes: ingredientesCusto, embalagens: mapaEmbalagens.get(p.id) ?? 0 });
+    const receitaInfo = p.receitaId ? mapaReceitaInfo.get(p.receitaId) : undefined;
+    const ingredientesCusto = receitaInfo ? receitaInfo.ingredientesPorUnidade : mapaIngredientesDiretos.get(p.id) ?? 0;
+    const taxaOverhead = receitaInfo ? receitaInfo.taxaOverhead : p.taxaOverhead;
+    mapa.set(p.id, {
+      ingredientes: ingredientesCusto,
+      embalagens: mapaEmbalagens.get(p.id) ?? 0,
+      overhead: ingredientesCusto * (taxaOverhead / 100),
+    });
   }
   return mapa;
 }

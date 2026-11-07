@@ -60,8 +60,14 @@ export default async function FinanceiroPage({
   const fechamento = await financeiro.buscarFechamento(ano, mes);
 
   const resumo = fechamento
-    ? { faturamento: fechamento.faturamento, custoProdutos: fechamento.custoProdutos, lucroGerado: fechamento.lucroGerado, quantidadePedidos: 0 }
-    : await financeiro.resumoPeriodo(inicio, fim);
+    ? {
+        faturamento: fechamento.faturamento,
+        custoProdutos: fechamento.custoProdutos,
+        custoOverhead: fechamento.taxaGasLuzAgua,
+        lucroGerado: fechamento.lucroGerado,
+        quantidadePedidos: 0,
+      }
+    : await financeiro.resumoPeriodo(inicio, fim, undefined, true);
 
   const distribuicao = fechamento
     ? (() => {
@@ -143,7 +149,7 @@ export default async function FinanceiroPage({
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Cartao titulo="Vendas do mês">
             <p className="mb-3 text-xs text-texto-suave">
-              Resultado de tudo que foi vendido em {MESES[mes - 1]}, pago ou não.
+              Resultado dos pedidos de {MESES[mes - 1]} já marcados como pagos.
             </p>
             <div className="space-y-1.5">
               <Linha rotulo="Faturamento" valor={`R$ ${resumo.faturamento.toFixed(2)}`} />
@@ -153,6 +159,16 @@ export default async function FinanceiroPage({
                 tipo="gasto"
               />
               <Linha rotulo="Lucro gerado" valor={`R$ ${resumo.lucroGerado.toFixed(2)}`} tipo="lucro" destaque />
+            </div>
+          </Cartao>
+
+          <Cartao titulo="Taxa gás/luz/água">
+            <p className="mb-3 text-xs text-texto-suave">
+              Parte do custo dos pedidos de {MESES[mes - 1]} já pagos reservada pra gás, luz e água (definida em cada
+              receita ou produto).
+            </p>
+            <div className="space-y-1.5">
+              <Linha rotulo="Gasto com gás/luz/água no mês" valor={`R$ ${resumo.custoOverhead.toFixed(2)}`} tipo="gasto" destaque />
             </div>
           </Cartao>
 
@@ -222,7 +238,7 @@ export default async function FinanceiroPage({
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Cartao titulo="Vendas do ano">
             <p className="mb-3 text-xs text-texto-suave">
-              Resultado de tudo que foi vendido no ano de {ano}, pago ou não — soma dos 12 meses.
+              Resultado dos pedidos de {ano} já marcados como pagos — soma dos 12 meses.
             </p>
             <div className="space-y-1.5">
               <Linha rotulo="Faturamento" valor={`R$ ${resumoAno.faturamento.toFixed(2)}`} />
@@ -232,6 +248,20 @@ export default async function FinanceiroPage({
                 tipo="gasto"
               />
               <Linha rotulo="Lucro gerado" valor={`R$ ${resumoAno.lucroGerado.toFixed(2)}`} tipo="lucro" destaque />
+            </div>
+          </Cartao>
+
+          <Cartao titulo="Taxa gás/luz/água no ano">
+            <p className="mb-3 text-xs text-texto-suave">
+              Parte do custo dos pedidos de {ano} já pagos reservada pra gás, luz e água — soma dos 12 meses.
+            </p>
+            <div className="space-y-1.5">
+              <Linha
+                rotulo="Gasto com gás/luz/água no ano"
+                valor={`R$ ${resumoAno.custoOverhead.toFixed(2)}`}
+                tipo="gasto"
+                destaque
+              />
             </div>
           </Cartao>
 

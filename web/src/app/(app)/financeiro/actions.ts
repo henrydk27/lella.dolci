@@ -16,7 +16,7 @@ export async function fecharMesAction(formData: FormData) {
   const inicio = `${ano}-${pad(mes)}-01`;
   const fim = `${ano}-${pad(mes)}-${pad(ultimoDia)}`;
 
-  const resumo = await financeiro.resumoPeriodo(inicio, fim);
+  const resumo = await financeiro.resumoPeriodo(inicio, fim, undefined, true);
   const distribuicao = await financeiro.distribuicaoDinheiroRecebido(inicio, fim);
   const pendente = await financeiro.pendenteGeral();
 
@@ -32,6 +32,7 @@ export async function fecharMesAction(formData: FormData) {
     reservaFinanceira: distribuicao.reservaFinanceira,
     funcionariaMae: distribuicao.funcionariaMae,
     proprietaria: distribuicao.proprietaria,
+    taxaGasLuzAgua: resumo.custoOverhead,
   });
 
   revalidatePath("/financeiro");
