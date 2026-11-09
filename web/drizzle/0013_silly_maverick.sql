@@ -1,0 +1,1 @@
+ALTER TABLE `receitas` ADD `cor_tema` text;

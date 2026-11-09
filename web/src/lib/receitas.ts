@@ -22,6 +22,7 @@ interface DadosReceita {
   rendimento: number;
   observacoes?: string | null;
   taxaOverhead?: number;
+  corTema?: string | null;
 }
 
 export async function adicionarReceita(dados: DadosReceita) {

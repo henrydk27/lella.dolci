@@ -10,6 +10,7 @@ import {
 } from "./actions";
 import { Cartao } from "@/components/ui/Cartao";
 import { Campo, CampoArea, CampoSelect } from "@/components/ui/Campo";
+import { SeletorCor } from "@/components/ui/SeletorCor";
 import { Botao } from "@/components/ui/Botao";
 import type { Receita } from "@/lib/receitas";
 
@@ -27,8 +28,12 @@ async function CardReceita({
   const remover = removerReceita.bind(null, receita.id);
   const addIngrediente = adicionarIngredienteReceita.bind(null, receita.id);
 
+  const estiloTema = receita.corTema
+    ? { backgroundColor: `color-mix(in srgb, ${receita.corTema} 22%, var(--cor-painel))` }
+    : undefined;
+
   return (
-    <Cartao>
+    <Cartao style={estiloTema}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="font-titulo text-lg text-terracota-vibrante">{receita.nome}</h3>
@@ -127,6 +132,7 @@ async function CardReceita({
           step="any"
           defaultValue={receita.taxaOverhead}
         />
+        <SeletorCor rotulo="Cor temática do card" name="corTema" defaultValue={receita.corTema} />
         <CampoArea rotulo="Observações" name="observacoes" defaultValue={receita.observacoes ?? ""} rows={2} />
         <Botao type="submit" variante="fantasma">
           Salvar
@@ -176,6 +182,7 @@ export default async function CalculadoraReceitasPage() {
             <Campo rotulo="Peso por unidade (g) — opcional" name="pesoUnidadeGramas" type="number" step="any" />
           </div>
           <Campo rotulo="Taxa gás/luz/água (%)" name="taxaOverhead" type="number" step="any" defaultValue={10} />
+          <SeletorCor rotulo="Cor temática do card" name="corTema" />
           <CampoArea rotulo="Observações" name="observacoes" rows={2} />
           <Botao type="submit">+ Criar receita</Botao>
         </form>

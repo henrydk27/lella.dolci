@@ -116,6 +116,9 @@ export const receitas = sqliteTable("receitas", {
   // Taxa de gas/luz/agua: percentual somado sobre o custo dos ingredientes,
   // igual ja funciona em Produtos (taxaOverhead).
   taxaOverhead: real("taxa_overhead").notNull().default(10),
+  // Cor tematica do card dessa receita na tela "Receitas prontas" (ex: "#c1483a").
+  // Null/vazio usa a cor padrao do cartao.
+  corTema: text("cor_tema"),
 });
 
 export const receitaIngredientes = sqliteTable("receita_ingredientes", {

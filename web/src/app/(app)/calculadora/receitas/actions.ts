@@ -19,6 +19,7 @@ export async function criarReceita(formData: FormData) {
     rendimento: Number(formData.get("rendimento") ?? 1) || 1,
     observacoes: texto(formData, "observacoes"),
     taxaOverhead: Number(formData.get("taxaOverhead") ?? 10) || 0,
+    corTema: texto(formData, "corTema"),
   });
   revalidatePath("/calculadora/receitas");
 }
@@ -33,6 +34,7 @@ export async function atualizarReceita(id: number, formData: FormData) {
     rendimento: Number(formData.get("rendimento") ?? 1) || 1,
     observacoes: texto(formData, "observacoes"),
     taxaOverhead: Number(formData.get("taxaOverhead") ?? 10) || 0,
+    corTema: texto(formData, "corTema"),
   });
   revalidatePath("/calculadora/receitas");
 }
