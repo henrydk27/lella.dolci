@@ -4,6 +4,8 @@ import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazi
 import { Botao } from "@/components/ui/Botao";
 import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
 import { BarraBusca, correspondeBusca } from "@/components/ui/BarraBusca";
+import { CampoEstoqueInline } from "@/components/ui/CampoInlineForm";
+import { definirEstoqueProduzido } from "./actions";
 
 type Produto = Awaited<ReturnType<typeof produtos.listarProdutos>>[number];
 
@@ -87,7 +89,9 @@ export default async function ProdutosPage({
                 <TabelaCelula>R$ {p.preco.toFixed(2)}</TabelaCelula>
                 <TabelaCelula>R$ {(custo?.custoTotal ?? 0).toFixed(2)}</TabelaCelula>
                 <TabelaCelula className={lucro < 0 ? "text-alerta" : ""}>R$ {lucro.toFixed(2)}</TabelaCelula>
-                <TabelaCelula>{p.estoqueProduzido}</TabelaCelula>
+                <TabelaCelula>
+                  <CampoEstoqueInline valorInicial={p.estoqueProduzido} action={definirEstoqueProduzido.bind(null, p.id)} />
+                </TabelaCelula>
                 <TabelaCelula>
                   <Link href={`/produtos/${p.id}`} className="font-bold text-terracota hover:underline">
                     Editar

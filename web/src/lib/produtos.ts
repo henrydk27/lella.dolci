@@ -99,6 +99,15 @@ export async function ajustarEstoqueProduzido(produtoId: number, delta: number) 
     .where(eq(produtos.id, produtoId));
 }
 
+// Edicao direta do estoque pronto (ex: contagem manual na tela de Produtos),
+// diferente de ajustarEstoqueProduzido que soma/subtrai um delta.
+export async function definirEstoqueProduzido(produtoId: number, valor: number) {
+  await db
+    .update(produtos)
+    .set({ estoqueProduzido: valor })
+    .where(eq(produtos.id, produtoId));
+}
+
 export async function listarIngredientesDoProduto(produtoId: number) {
   return db
     .select({

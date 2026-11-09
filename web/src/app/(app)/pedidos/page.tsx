@@ -4,6 +4,9 @@ import { Tabela, TabelaCabecalhoOrdenavel, TabelaLinha, TabelaCelula, TabelaVazi
 import { Botao } from "@/components/ui/Botao";
 import { configurarOrdenacao, ordenarLista, gerarHrefOrdenar } from "@/lib/ordenacao";
 import { BarraBusca, correspondeBusca } from "@/components/ui/BarraBusca";
+import { SeletorStatusInline } from "@/components/ui/CampoInlineForm";
+import { atualizarStatusPedidoRapido } from "./actions";
+import { STATUS_PEDIDO } from "@/lib/pedidos";
 
 function dataBr(iso: string) {
   return iso.slice(0, 10).split("-").reverse().join("/");
@@ -125,7 +128,13 @@ export default async function PedidosPage({
               <TabelaCelula className={(pendentes.get(p.id) ?? 0) > 0.009 ? "font-bold text-alerta" : ""}>
                 R$ {(pendentes.get(p.id) ?? 0).toFixed(2)}
               </TabelaCelula>
-              <TabelaCelula>{p.status}</TabelaCelula>
+              <TabelaCelula>
+                <SeletorStatusInline
+                  valorInicial={p.status}
+                  opcoes={STATUS_PEDIDO.map((s) => ({ valor: s, texto: s }))}
+                  action={atualizarStatusPedidoRapido.bind(null, p.id)}
+                />
+              </TabelaCelula>
               <TabelaCelula>
                 <Link href={`/pedidos/${p.id}`} className="font-bold text-terracota hover:underline">
                   Ver

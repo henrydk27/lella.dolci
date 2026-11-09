@@ -84,6 +84,13 @@ export async function atualizarDadosPedido(id: number, formData: FormData) {
   redirect("/pedidos");
 }
 
+export async function atualizarStatusPedidoRapido(id: number, formData: FormData) {
+  const status = String(formData.get("status") ?? "").trim();
+  if (status) await pedidos.atualizarStatusPedido(id, status);
+  revalidatePath("/pedidos");
+  revalidatePath(`/pedidos/${id}`);
+}
+
 export async function removerPedido(id: number) {
   const { pedido, itens } = await pedidos.buscarPedido(id);
   if (pedido?.tipo === "pronta_entrega") {

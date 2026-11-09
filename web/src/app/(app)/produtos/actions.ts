@@ -52,6 +52,12 @@ export async function atualizarProduto(id: number, formData: FormData) {
   revalidatePath(`/produtos/${id}`);
 }
 
+export async function definirEstoqueProduzido(id: number, formData: FormData) {
+  const valor = numero(formData, "estoqueProduzido");
+  await produtos.definirEstoqueProduzido(id, valor);
+  revalidatePath("/produtos");
+}
+
 export async function removerProduto(id: number) {
   if (await produtos.produtoTemPedidos(id)) {
     redirect(`/produtos/${id}?erro=tem-pedidos`);
