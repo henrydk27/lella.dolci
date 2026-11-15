@@ -126,7 +126,7 @@ export default async function PedidosPage({
               <TabelaCelula>{dataBr(p.dataPedido)}</TabelaCelula>
               <TabelaCelula>{p.dataEntrega ? p.dataEntrega.split("-").reverse().join("/") : "-"}</TabelaCelula>
               <TabelaCelula className={(pendentes.get(p.id) ?? 0) > 0.009 ? "font-bold text-alerta" : ""}>
-                R$ {(pendentes.get(p.id) ?? 0).toFixed(2)}
+                {p.status === "pago" ? "-" : `R$ ${(pendentes.get(p.id) ?? 0).toFixed(2)}`}
               </TabelaCelula>
               <TabelaCelula>
                 <SeletorStatusInline
