@@ -162,6 +162,17 @@ export const fechamentosMensais = sqliteTable("fechamentos_mensais", {
   fechadoEm: text("fechado_em").notNull(),
 });
 
+// Separacoes manuais de lucro: registro de quando um valor do lucro
+// disponivel foi de fato separado/guardado na pratica (nem sempre o lucro
+// calculado acaba sendo guardado de verdade), pra comparar o que devia ser
+// separado com o que realmente foi.
+export const separacoesLucro = sqliteTable("separacoes_lucro", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  data: text("data").notNull(), // AAAA-MM-DD
+  valor: real("valor").notNull(),
+  observacoes: text("observacoes"),
+});
+
 export const tentativasLogin = sqliteTable("tentativas_login", {
   ip: text("ip").primaryKey(),
   tentativas: integer("tentativas").notNull().default(0),

@@ -37,3 +37,18 @@ export async function fecharMesAction(formData: FormData) {
 
   revalidatePath("/financeiro");
 }
+
+export async function adicionarSeparacaoLucroAction(formData: FormData) {
+  const valor = parseFloat(String(formData.get("valor") ?? "0").replace(",", "."));
+  const data = String(formData.get("data") ?? "").trim();
+  const observacoes = String(formData.get("observacoes") ?? "").trim() || null;
+  if (valor > 0 && data) {
+    await financeiro.adicionarSeparacaoLucro(data, valor, observacoes);
+  }
+  revalidatePath("/financeiro");
+}
+
+export async function removerSeparacaoLucroAction(id: number) {
+  await financeiro.removerSeparacaoLucro(id);
+  revalidatePath("/financeiro");
+}

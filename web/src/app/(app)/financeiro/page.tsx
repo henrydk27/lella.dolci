@@ -1,10 +1,10 @@
 import Link from "next/link";
 import * as financeiro from "@/lib/financeiro";
 import { Cartao } from "@/components/ui/Cartao";
-import { CampoSelect } from "@/components/ui/Campo";
+import { Campo, CampoArea, CampoSelect } from "@/components/ui/Campo";
 import { Botao } from "@/components/ui/Botao";
 import { Tabela, TabelaCabecalho, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
-import { fecharMesAction } from "./actions";
+import { fecharMesAction, adicionarSeparacaoLucroAction, removerSeparacaoLucroAction } from "./actions";
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -36,11 +36,15 @@ function Linha({
   const cor =
     tipo === "lucro" ? "text-salvia" : tipo === "gasto" ? "text-alerta" : destaque ? "text-terracota-vibrante" : "text-texto";
   return (
-    <p className="flex items-center justify-between text-sm">
+    <p className="flex items-start justify-between gap-3 text-sm">
       <span className="text-texto-suave">{rotulo}</span>
-      <strong className={cor}>{valor}</strong>
+      <strong className={`shrink-0 whitespace-nowrap text-right ${cor}`}>{valor}</strong>
     </p>
   );
+}
+
+function dataHojeIso() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 export default async function FinanceiroPage({
@@ -89,6 +93,11 @@ export default async function FinanceiroPage({
   const pendenteGeral = fechamento ? fechamento.pendente : await financeiro.pendenteGeral();
 
   const resumoAno = await financeiro.resumoAno(ano);
+
+  const separacoesMes = await financeiro.listarSeparacoesLucroNoPeriodo(inicio, fim);
+  const totalSeparadoMes = separacoesMes.reduce((soma, s) => soma + s.valor, 0);
+  const separacoesAno = await financeiro.listarSeparacoesLucroNoPeriodo(`${ano}-01-01`, `${ano}-12-31`);
+  const totalSeparadoAno = separacoesAno.reduce((soma, s) => soma + s.valor, 0);
 
   const atrasados = await financeiro.pedidosComSaldoPendente();
   const fechamentos = await financeiro.listarFechamentos();
@@ -231,6 +240,61 @@ export default async function FinanceiroPage({
             </div>
           </div>
         </Cartao>
+
+        <Cartao titulo="Separação manual de lucro" className="mt-6">
+          <p className="mb-3 text-sm text-texto-suave">
+            O lucro disponível acima é só o cálculo — nem sempre esse valor acaba sendo guardado de verdade. Registre
+            aqui quanto você realmente separou, pra comparar com o que devia ser separado.
+          </p>
+          <div className="mb-4 space-y-1.5 border-b border-borda pb-4">
+            <Linha rotulo="Lucro disponível do mês" valor={`R$ ${distribuicao.lucroDisponivel.toFixed(2)}`} tipo="lucro" />
+            <Linha rotulo="Já separado de verdade no mês" valor={`R$ ${totalSeparadoMes.toFixed(2)}`} tipo="lucro" destaque />
+            <Linha
+              rotulo={distribuicao.lucroDisponivel - totalSeparadoMes >= 0 ? "Ainda falta separar" : "Separado a mais"}
+              valor={`R$ ${Math.abs(distribuicao.lucroDisponivel - totalSeparadoMes).toFixed(2)}`}
+              tipo={distribuicao.lucroDisponivel - totalSeparadoMes > 0.009 ? "gasto" : "lucro"}
+            />
+          </div>
+
+          <form action={adicionarSeparacaoLucroAction} className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <Campo rotulo="Data" name="data" type="date" defaultValue={dataHojeIso()} className="sm:w-40" />
+            <Campo rotulo="Valor separado" name="valor" type="number" step="any" placeholder="0,00" className="sm:w-32" />
+            <div className="min-w-0 flex-1">
+              <CampoArea rotulo="Observações (opcional)" name="observacoes" rows={1} />
+            </div>
+            <Botao type="submit" className="sm:w-auto">
+              + Registrar
+            </Botao>
+          </form>
+
+          <div className="space-y-1.5">
+            {separacoesMes.length === 0 && (
+              <p className="text-sm text-texto-suave">Nenhuma separação registrada neste mês ainda.</p>
+            )}
+            {separacoesMes.map((s) => {
+              const remover = removerSeparacaoLucroAction.bind(null, s.id);
+              return (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between gap-2 rounded-lg bg-painel-claro px-3 py-1.5 text-sm"
+                >
+                  <span className="text-texto-suave">
+                    {s.data.split("-").reverse().join("/")}
+                    {s.observacoes ? ` — ${s.observacoes}` : ""}
+                  </span>
+                  <div className="flex items-center gap-2 whitespace-nowrap">
+                    <strong className="text-salvia">R$ {s.valor.toFixed(2)}</strong>
+                    <form action={remover}>
+                      <button type="submit" className="text-xs font-bold text-alerta hover:underline">
+                        remover
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Cartao>
       </div>
 
       <div>
@@ -321,6 +385,14 @@ export default async function FinanceiroPage({
               <p className="text-xs font-bold uppercase text-texto-suave">Proprietária / reinvestimento (77%)</p>
               <p className="font-titulo text-xl text-salvia">R$ {resumoAno.proprietaria.toFixed(2)}</p>
             </div>
+          </div>
+          <div className="mt-4 space-y-1.5 border-t border-borda pt-4">
+            <Linha rotulo="Já separado de verdade no ano" valor={`R$ ${totalSeparadoAno.toFixed(2)}`} tipo="lucro" destaque />
+            <Linha
+              rotulo={resumoAno.lucroDisponivel - totalSeparadoAno >= 0 ? "Ainda falta separar no ano" : "Separado a mais no ano"}
+              valor={`R$ ${Math.abs(resumoAno.lucroDisponivel - totalSeparadoAno).toFixed(2)}`}
+              tipo={resumoAno.lucroDisponivel - totalSeparadoAno > 0.009 ? "gasto" : "lucro"}
+            />
           </div>
         </Cartao>
       </div>

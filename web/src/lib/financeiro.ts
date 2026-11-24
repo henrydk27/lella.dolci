@@ -1,6 +1,6 @@
 import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { pedidos, pedidoItens, produtos, clientes, pagamentos, fechamentosMensais } from "@/db/schema";
+import { pedidos, pedidoItens, produtos, clientes, pagamentos, fechamentosMensais, separacoesLucro } from "@/db/schema";
 import * as pagamentosLib from "./pagamentos";
 import { mapaCustoIngredientesEEmbalagens } from "./produtos";
 
@@ -483,4 +483,25 @@ export async function mapaCustoIngredientesEmbalagens(produtoIds: number[]) {
 
 export async function listarFechamentos() {
   return db.select().from(fechamentosMensais).orderBy(sql`${fechamentosMensais.ano} DESC, ${fechamentosMensais.mes} DESC`);
+}
+
+export type SeparacaoLucro = typeof separacoesLucro.$inferSelect;
+
+// Registro manual de "separei esse valor de verdade" - independente do
+// calculo automatico de reserva financeira/funcionaria/proprietaria, pra
+// comparar o que devia ser guardado com o que realmente foi guardado.
+export async function adicionarSeparacaoLucro(data: string, valor: number, observacoes: string | null) {
+  await db.insert(separacoesLucro).values({ data, valor, observacoes });
+}
+
+export async function removerSeparacaoLucro(id: number) {
+  await db.delete(separacoesLucro).where(eq(separacoesLucro.id, id));
+}
+
+export async function listarSeparacoesLucroNoPeriodo(dataInicio: string, dataFim: string): Promise<SeparacaoLucro[]> {
+  return db
+    .select()
+    .from(separacoesLucro)
+    .where(and(gte(separacoesLucro.data, dataInicio), lte(separacoesLucro.data, dataFim)))
+    .orderBy(sql`${separacoesLucro.data} DESC, ${separacoesLucro.id} DESC`);
 }
