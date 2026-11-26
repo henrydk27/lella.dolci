@@ -38,6 +38,14 @@ export async function fecharMesAction(formData: FormData) {
   revalidatePath("/financeiro");
 }
 
+export async function reabrirMesAction(formData: FormData) {
+  const ano = Number(formData.get("ano"));
+  const mes = Number(formData.get("mes"));
+  if (!ano || !mes) return;
+  await financeiro.reabrirMes(ano, mes);
+  revalidatePath("/financeiro");
+}
+
 export async function adicionarSeparacaoLucroAction(formData: FormData) {
   const valor = parseFloat(String(formData.get("valor") ?? "0").replace(",", "."));
   const data = String(formData.get("data") ?? "").trim();

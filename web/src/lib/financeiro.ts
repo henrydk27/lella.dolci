@@ -437,6 +437,12 @@ export async function fecharMes(ano: number, mes: number, dados: Fechamento) {
   }
 }
 
+// Desfaz o fechamento de um mes (ex: fechado por engano) - volta a calcular
+// os valores na hora, igual um mes que nunca foi fechado.
+export async function reabrirMes(ano: number, mes: number) {
+  await db.delete(fechamentosMensais).where(and(eq(fechamentosMensais.ano, ano), eq(fechamentosMensais.mes, mes)));
+}
+
 export interface LinhaPeriodo {
   pedidoId: number;
   dataPedido: string;

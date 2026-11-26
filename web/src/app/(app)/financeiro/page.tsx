@@ -4,7 +4,7 @@ import { Cartao } from "@/components/ui/Cartao";
 import { Campo, CampoArea, CampoSelect } from "@/components/ui/Campo";
 import { Botao } from "@/components/ui/Botao";
 import { Tabela, TabelaCabecalho, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
-import { fecharMesAction, adicionarSeparacaoLucroAction, removerSeparacaoLucroAction } from "./actions";
+import { fecharMesAction, reabrirMesAction, adicionarSeparacaoLucroAction, removerSeparacaoLucroAction } from "./actions";
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -155,11 +155,20 @@ export default async function FinanceiroPage({
             Ver mês
           </button>
         </form>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           {fechamento ? (
-            <span className="rounded-full border border-salvia bg-salvia/10 px-4 py-2 text-sm font-bold text-salvia">
-              Mês fechado em {dataBr(fechamento.fechadoEm)}
-            </span>
+            <>
+              <span className="rounded-full border border-salvia bg-salvia/10 px-4 py-2 text-sm font-bold text-salvia">
+                Mês fechado em {dataBr(fechamento.fechadoEm)}
+              </span>
+              <form action={reabrirMesAction}>
+                <input type="hidden" name="ano" value={ano} />
+                <input type="hidden" name="mes" value={mes} />
+                <Botao type="submit" variante="fantasma">
+                  Reabrir mês
+                </Botao>
+              </form>
+            </>
           ) : (
             <form action={fecharMesAction}>
               <input type="hidden" name="ano" value={ano} />
