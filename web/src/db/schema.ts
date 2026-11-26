@@ -1,4 +1,4 @@
-import { sqliteTable, integer, text, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, text, real, index } from "drizzle-orm/sqlite-core";
 
 export const ingredientes = sqliteTable("ingredientes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -67,26 +67,44 @@ export const clientes = sqliteTable("clientes", {
   notas: text("notas"),
 });
 
-export const pedidos = sqliteTable("pedidos", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  clienteId: integer("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
-  tipo: text("tipo").notNull().default("encomenda"),
-  dataPedido: text("data_pedido").notNull(),
-  dataEntrega: text("data_entrega"),
-  formaPagamento: text("forma_pagamento"),
-  status: text("status").notNull().default("pendente"),
-  observacoes: text("observacoes"),
-  caixa: text("caixa"),
-  taxaEntrega: real("taxa_entrega").notNull().default(0),
-});
+export const pedidos = sqliteTable(
+  "pedidos",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    clienteId: integer("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
+    tipo: text("tipo").notNull().default("encomenda"),
+    dataPedido: text("data_pedido").notNull(),
+    dataEntrega: text("data_entrega"),
+    formaPagamento: text("forma_pagamento"),
+    status: text("status").notNull().default("pendente"),
+    observacoes: text("observacoes"),
+    caixa: text("caixa"),
+    taxaEntrega: real("taxa_entrega").notNull().default(0),
+  },
+  (table) => ({
+    // data_pedido e status sao filtrados o tempo todo (Financeiro, Dashboard,
+    // Pedidos) - sem indice, cada filtro vira uma varredura da tabela
+    // inteira conforme o historico de pedidos cresce.
+    dataPedidoIdx: index("pedidos_data_pedido_idx").on(table.dataPedido),
+    statusIdx: index("pedidos_status_idx").on(table.status),
+  })
+);
 
-export const pedidoItens = sqliteTable("pedido_itens", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  pedidoId: integer("pedido_id").notNull().references(() => pedidos.id, { onDelete: "cascade" }),
-  produtoId: integer("produto_id").notNull().references(() => produtos.id),
-  quantidade: integer("quantidade").notNull(),
-  precoUnitario: real("preco_unitario").notNull(),
-});
+export const pedidoItens = sqliteTable(
+  "pedido_itens",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    pedidoId: integer("pedido_id").notNull().references(() => pedidos.id, { onDelete: "cascade" }),
+    produtoId: integer("produto_id").notNull().references(() => produtos.id),
+    quantidade: integer("quantidade").notNull(),
+    precoUnitario: real("preco_unitario").notNull(),
+  },
+  (table) => ({
+    // SQLite nao cria indice automatico pra chave estrangeira - esse e' o
+    // mais usado de toda a base (todo pedido carrega os itens por pedido_id).
+    pedidoIdIdx: index("pedido_itens_pedido_id_idx").on(table.pedidoId),
+  })
+);
 
 export const planoProducaoItens = sqliteTable("plano_producao_itens", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -132,13 +150,20 @@ export const receitaIngredientes = sqliteTable("receita_ingredientes", {
 // (parciais) em datas diferentes - a soma informa quanto ja foi efetivamente
 // recebido, separado de "status" (que continua controlando o fluxo de
 // producao/entrega, sem mudar o comportamento ja existente).
-export const pagamentos = sqliteTable("pagamentos", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  pedidoId: integer("pedido_id").notNull().references(() => pedidos.id, { onDelete: "cascade" }),
-  valor: real("valor").notNull(),
-  data: text("data").notNull(), // AAAA-MM-DD: data real em que o dinheiro entrou
-  observacoes: text("observacoes"),
-});
+export const pagamentos = sqliteTable(
+  "pagamentos",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    pedidoId: integer("pedido_id").notNull().references(() => pedidos.id, { onDelete: "cascade" }),
+    valor: real("valor").notNull(),
+    data: text("data").notNull(), // AAAA-MM-DD: data real em que o dinheiro entrou
+    observacoes: text("observacoes"),
+  },
+  (table) => ({
+    pedidoIdIdx: index("pagamentos_pedido_id_idx").on(table.pedidoId),
+    dataIdx: index("pagamentos_data_idx").on(table.data),
+  })
+);
 
 // Fechamento mensal do Financeiro: congela os valores calculados de um mes
 // para que reajustes futuros de preco de ingrediente, ou pagamentos
