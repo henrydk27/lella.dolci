@@ -61,7 +61,15 @@ export default async function FinanceiroPage({
   const inicio = `${ano}-${pad(mes)}-01`;
   const fim = `${ano}-${pad(mes)}-${pad(ultimoDia)}`;
 
-  const fechamento = await financeiro.buscarFechamento(ano, mes);
+  // custoMapaCompartilhado: custo de todos os produtos calculado uma unica
+  // vez e reaproveitado pelo resumo do mes, a distribuicao e os ate 12 meses
+  // dentro de resumoAno - sem isso, a mesma consulta de custo (ingredientes +
+  // embalagens + receita vinculada) seria refeita varias vezes na mesma
+  // carga de pagina.
+  const [fechamento, custoMapaCompartilhado] = await Promise.all([
+    financeiro.buscarFechamento(ano, mes),
+    financeiro.buscarMapaCustoTodosProdutos(),
+  ]);
 
   // Tudo abaixo e' independente entre si (nenhum depende do resultado de
   // outro) - roda em paralelo em vez de uma consulta esperar a outra, pra
@@ -79,11 +87,11 @@ export default async function FinanceiroPage({
     atrasados,
     fechamentos,
   ] = await Promise.all([
-    fechamento ? Promise.resolve(null) : financeiro.resumoPeriodo(inicio, fim, undefined, true),
-    fechamento ? Promise.resolve(null) : financeiro.distribuicaoDinheiroRecebido(inicio, fim),
+    fechamento ? Promise.resolve(null) : financeiro.resumoPeriodo(inicio, fim, undefined, true, custoMapaCompartilhado),
+    fechamento ? Promise.resolve(null) : financeiro.distribuicaoDinheiroRecebido(inicio, fim, custoMapaCompartilhado),
     financeiro.pendenteDoPeriodoDeVenda(inicio, fim),
     fechamento ? Promise.resolve(null) : financeiro.pendenteGeral(),
-    financeiro.resumoAno(ano),
+    financeiro.resumoAno(ano, custoMapaCompartilhado),
     financeiro.listarSeparacoesLucroNoPeriodo(inicio, fim),
     financeiro.listarSeparacoesLucroNoPeriodo(`${ano}-01-01`, `${ano}-12-31`),
     financeiro.pedidosComSaldoPendente(),

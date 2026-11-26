@@ -74,15 +74,26 @@ async function buscarPedidosComItensPorIds(ids: number[]): Promise<PedidoComIten
 // notar com o banco local). O custo de ingredientes vem da receita
 // vinculada quando o produto tiver uma (senao da lista direta do produto) -
 // delegado pra produtos.ts, que e' a mesma logica usada na tela de Produtos.
-async function mapaCustoPorProduto(
-  produtoIds: number[]
-): Promise<Map<number, { ingredientes: number; overhead: number; total: number }>> {
+type MapaCusto = Map<number, { ingredientes: number; overhead: number; total: number }>;
+
+async function mapaCustoPorProduto(produtoIds: number[]): Promise<MapaCusto> {
   const custos = await mapaCustoIngredientesEEmbalagens(produtoIds);
-  const mapa = new Map<number, { ingredientes: number; overhead: number; total: number }>();
+  const mapa: MapaCusto = new Map();
   for (const [id, c] of custos) {
     mapa.set(id, { ingredientes: c.ingredientes, overhead: c.overhead, total: c.ingredientes + c.embalagens });
   }
   return mapa;
+}
+
+// Custo de TODOS os produtos cadastrados, calculado uma unica vez. O
+// Financeiro usa isso como mapa compartilhado entre o resumo do mes, a
+// distribuicao de dinheiro recebido e o resumo do ano (que por sua vez olha
+// ate 12 meses) - sem isso, a mesma consulta batelada de custo (ingredientes
+// + embalagens + receita vinculada) seria refeita de novo a cada uma dessas
+// chamadas na mesma carga de pagina, mesmo os produtos sendo os mesmos.
+export async function buscarMapaCustoTodosProdutos(): Promise<MapaCusto> {
+  const todos = await db.select({ id: produtos.id }).from(produtos);
+  return mapaCustoPorProduto(todos.map((p) => p.id));
 }
 
 // Soma de pagamentos por pedido, numa unica consulta agregada - usado onde
@@ -118,7 +129,8 @@ export async function resumoPeriodo(
   dataInicio: string,
   dataFim: string,
   tipo?: string,
-  apenasPagos = false
+  apenasPagos = false,
+  custoMapaCompartilhado?: MapaCusto
 ): Promise<ResumoPeriodo> {
   let pedidosPeriodo = await buscarPedidosComItensNoPeriodo(dataInicio, dataFim);
   if (tipo) {
@@ -137,7 +149,7 @@ export async function resumoPeriodo(
   }
 
   const produtoIds = pedidosPeriodo.flatMap((p) => p.itens.map((i) => i.produtoId));
-  const custoMapa = await mapaCustoPorProduto(produtoIds);
+  const custoMapa = custoMapaCompartilhado ?? (await mapaCustoPorProduto(produtoIds));
 
   let faturamento = 0;
   let custoIngredientes = 0;
@@ -178,7 +190,11 @@ export interface DistribuicaoRecebida {
 // pedido ja foi efetivamente pago, usando a DATA DO PAGAMENTO (nao a data da
 // venda) - um recebimento atrasado de uma venda antiga entra no mes em que
 // o dinheiro realmente chegou.
-export async function distribuicaoDinheiroRecebido(dataInicio: string, dataFim: string): Promise<DistribuicaoRecebida> {
+export async function distribuicaoDinheiroRecebido(
+  dataInicio: string,
+  dataFim: string,
+  custoMapaCompartilhado?: MapaCusto
+): Promise<DistribuicaoRecebida> {
   const pagamentosPeriodo = await pagamentosLib.listarPagamentosNoPeriodo(dataInicio, dataFim);
   const vazio: DistribuicaoRecebida = {
     recebido: 0,
@@ -196,7 +212,7 @@ export async function distribuicaoDinheiroRecebido(dataInicio: string, dataFim: 
   const pedidosComItens = await buscarPedidosComItensPorIds(pedidoIds);
   const pedidosMapa = new Map(pedidosComItens.map((p) => [p.id, p]));
   const produtoIds = pedidosComItens.flatMap((p) => p.itens.map((i) => i.produtoId));
-  const custoMapa = await mapaCustoPorProduto(produtoIds);
+  const custoMapa = custoMapaCompartilhado ?? (await mapaCustoPorProduto(produtoIds));
 
   let recebido = 0;
   let lucroRecebido = 0;
@@ -297,8 +313,11 @@ export interface ResumoAno {
 // Mesma logica da pagina de um mes (fechamento congelado se existir, senao
 // calculado na hora), somada para os 12 meses do ano - assim o card do ano
 // bate exatamente com a soma do que cada mes mostraria se fosse aberto um
-// por um.
-export async function resumoAno(ano: number): Promise<ResumoAno> {
+// por um. custoMapaCompartilhado (opcional) evita recalcular o custo dos
+// produtos a cada mes aberto - quem chama essa funcao pode calcular uma vez
+// (buscarMapaCustoTodosProdutos) e passar pra ca, reaproveitando entre os
+// meses em vez de uma bateria de consultas de custo por mes aberto.
+export async function resumoAno(ano: number, custoMapaCompartilhado?: MapaCusto): Promise<ResumoAno> {
   const totais: ResumoAno = {
     faturamento: 0,
     custoProdutos: 0,
@@ -344,8 +363,8 @@ export async function resumoAno(ano: number): Promise<ResumoAno> {
     const inicio = `${ano}-${pad(mes)}-01`;
     const fim = `${ano}-${pad(mes)}-${pad(ultimoDia)}`;
     const [resumo, distrib, pendenteMes] = await Promise.all([
-      resumoPeriodo(inicio, fim, undefined, true),
-      distribuicaoDinheiroRecebido(inicio, fim),
+      resumoPeriodo(inicio, fim, undefined, true, custoMapaCompartilhado),
+      distribuicaoDinheiroRecebido(inicio, fim, custoMapaCompartilhado),
       pendenteDoPeriodoDeVenda(inicio, fim),
     ]);
     totais.faturamento += resumo.faturamento;
