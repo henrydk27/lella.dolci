@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
+import { eq, ne, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { pedidos, pedidoItens, produtos, clientes, pagamentos, fechamentosMensais, separacoesLucro } from "@/db/schema";
 import * as pagamentosLib from "./pagamentos";
@@ -368,6 +368,9 @@ export async function resumoAno(ano: number): Promise<ResumoAno> {
 
 // Pedidos com saldo ainda nao recebido, ordenados do mais antigo pro mais
 // novo - para a lista de "Recebimentos atrasados" do Financeiro.
+// So olha pedidos que ainda nao estao marcados como "pago" - evita carregar
+// o historico inteiro de pedidos (que so cresce com o tempo) pra depois
+// descartar em memoria os que ja foram quitados.
 export async function pedidosComSaldoPendente() {
   const todos = await db
     .select({
@@ -380,6 +383,7 @@ export async function pedidosComSaldoPendente() {
     })
     .from(pedidos)
     .leftJoin(clientes, eq(clientes.id, pedidos.clienteId))
+    .where(ne(pedidos.status, "pago"))
     .orderBy(pedidos.dataPedido);
 
   const comItens = await anexarItens(todos);

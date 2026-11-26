@@ -63,6 +63,33 @@ export default async function FinanceiroPage({
 
   const fechamento = await financeiro.buscarFechamento(ano, mes);
 
+  // Tudo abaixo e' independente entre si (nenhum depende do resultado de
+  // outro) - roda em paralelo em vez de uma consulta esperar a outra, pra
+  // nao somar a latencia de cada ida-e-volta ao banco remoto (Turso) uma
+  // atras da outra. So pula resumo/distribuicao/pendenteGeral quando o mes
+  // ja esta fechado (nesse caso o valor congelado substitui o calculo).
+  const [
+    resumoCalculado,
+    distribuicaoCalculada,
+    pendenteDoMes,
+    pendenteGeralCalculado,
+    resumoAno,
+    separacoesMes,
+    separacoesAno,
+    atrasados,
+    fechamentos,
+  ] = await Promise.all([
+    fechamento ? Promise.resolve(null) : financeiro.resumoPeriodo(inicio, fim, undefined, true),
+    fechamento ? Promise.resolve(null) : financeiro.distribuicaoDinheiroRecebido(inicio, fim),
+    financeiro.pendenteDoPeriodoDeVenda(inicio, fim),
+    fechamento ? Promise.resolve(null) : financeiro.pendenteGeral(),
+    financeiro.resumoAno(ano),
+    financeiro.listarSeparacoesLucroNoPeriodo(inicio, fim),
+    financeiro.listarSeparacoesLucroNoPeriodo(`${ano}-01-01`, `${ano}-12-31`),
+    financeiro.pedidosComSaldoPendente(),
+    financeiro.listarFechamentos(),
+  ]);
+
   const resumo = fechamento
     ? {
         faturamento: fechamento.faturamento,
@@ -71,7 +98,7 @@ export default async function FinanceiroPage({
         lucroGerado: fechamento.lucroGerado,
         quantidadePedidos: 0,
       }
-    : await financeiro.resumoPeriodo(inicio, fim, undefined, true);
+    : resumoCalculado!;
 
   const distribuicao = fechamento
     ? (() => {
@@ -87,20 +114,12 @@ export default async function FinanceiroPage({
           custoIngredientesRecebido: fechamento.reservaDespesas / financeiro.PERCENTUAL_RESERVA_DESPESAS,
         };
       })()
-    : await financeiro.distribuicaoDinheiroRecebido(inicio, fim);
+    : distribuicaoCalculada!;
 
-  const pendenteDoMes = await financeiro.pendenteDoPeriodoDeVenda(inicio, fim);
-  const pendenteGeral = fechamento ? fechamento.pendente : await financeiro.pendenteGeral();
+  const pendenteGeral = fechamento ? fechamento.pendente : pendenteGeralCalculado!;
 
-  const resumoAno = await financeiro.resumoAno(ano);
-
-  const separacoesMes = await financeiro.listarSeparacoesLucroNoPeriodo(inicio, fim);
   const totalSeparadoMes = separacoesMes.reduce((soma, s) => soma + s.valor, 0);
-  const separacoesAno = await financeiro.listarSeparacoesLucroNoPeriodo(`${ano}-01-01`, `${ano}-12-31`);
   const totalSeparadoAno = separacoesAno.reduce((soma, s) => soma + s.valor, 0);
-
-  const atrasados = await financeiro.pedidosComSaldoPendente();
-  const fechamentos = await financeiro.listarFechamentos();
 
   const anosDisponiveis = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
 
