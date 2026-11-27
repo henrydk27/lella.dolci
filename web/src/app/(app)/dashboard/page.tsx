@@ -63,8 +63,17 @@ export default async function DashboardPage({
 
   const { inicio, fim } = limitesDoPeriodo(filtros);
 
-  const linhas = await financeiro.buscarLinhasPeriodo(inicio, fim);
-  const taxaPorPedido = await financeiro.mapaTaxaEntregaPorPedido(inicio, fim);
+  // Carrega em paralelo tudo que nao depende de nada mais: as linhas do
+  // periodo, as taxas de entrega, as categorias do filtro e o custo de TODOS
+  // os produtos de uma vez (reaproveitado abaixo pelo resumo anual, pela
+  // tendencia dos ultimos 6 meses e pelo comparativo - sem isso, cada um
+  // desses recalcularia o mesmo custo por conta propria).
+  const [linhas, taxaPorPedido, categorias, custoMapa] = await Promise.all([
+    financeiro.buscarLinhasPeriodo(inicio, fim),
+    financeiro.mapaTaxaEntregaPorPedido(inicio, fim),
+    produtosLib.listarCategorias(),
+    financeiro.buscarMapaCustoTodosProdutos(),
+  ]);
 
   const linhasFiltradas = linhas.filter((l) => {
     if (filtros.categoria && l.categoria !== filtros.categoria) return false;
@@ -72,8 +81,6 @@ export default async function DashboardPage({
     if (filtros.pagamento === "pendente" && l.status === "pago") return false;
     return true;
   });
-
-  const custoMapa = await financeiro.mapaCustoIngredientesEmbalagens(linhasFiltradas.map((l) => l.produtoId));
 
   const pedidoIdsFiltrados = new Set(linhasFiltradas.map((l) => l.pedidoId));
   const faturamentoItens = linhasFiltradas.reduce((s, l) => s + l.quantidade * l.precoUnitario, 0);
@@ -87,10 +94,6 @@ export default async function DashboardPage({
 
   // Faturamento anual (sempre o ano inteiro selecionado, sem os filtros de categoria/pagamento).
   const limitesAno = limitesDoPeriodo({ ...filtros, mes: null, inicio: undefined, fim: undefined });
-  const resumoAnual = await financeiro.resumoPeriodo(limitesAno.inicio, limitesAno.fim);
-
-  const recebidoNoPeriodo = (await financeiro.distribuicaoDinheiroRecebido(inicio, fim)).recebido;
-  const pendenteGeralValor = await financeiro.pendenteGeral();
 
   // Acompanhamento: contagem por status de producao/entrega (sem filtro de categoria/pagamento).
   const contagemStatus = { pendente: 0, pronto: 0, entregue: 0 };
@@ -105,25 +108,45 @@ export default async function DashboardPage({
   // Grafico: faturamento e lucro nos ultimos 6 meses (terminando no mes/ano filtrado).
   const mesReferencia = filtros.mes ?? mesAtual;
   const anoReferencia = filtros.ano;
-  const tendencia = [];
+  const mesesTendencia = [];
   for (let i = 5; i >= 0; i--) {
     const data = new Date(anoReferencia, mesReferencia - 1 - i, 1);
     const ano = data.getFullYear();
     const mes = data.getMonth() + 1;
-    const { inicio: ini, fim: f } = limitesDoPeriodo({ ano, mes, categoria: undefined, pagamento: "todos" });
-    const resumoMes = await financeiro.resumoPeriodo(ini, f);
-    tendencia.push({ rotulo: `${MESES[mes - 1].slice(0, 3)}/${String(ano).slice(2)}`, a: resumoMes.faturamento, b: resumoMes.lucroGerado });
+    mesesTendencia.push({ ano, mes, rotulo: `${MESES[mes - 1].slice(0, 3)}/${String(ano).slice(2)}` });
   }
 
   // Comparativo mes a mes (mes selecionado vs mes anterior), sempre que um mes especifico estiver selecionado.
-  let comparativo: { atual: number; anterior: number; variacao: number } | null = null;
+  let limitesMesAnterior: { inicio: string; fim: string } | null = null;
   if (filtros.mes && !periodoPersonalizado) {
     const dataAnterior = new Date(filtros.ano, filtros.mes - 2, 1);
-    const { inicio: iniAnt, fim: fimAnt } = limitesDoPeriodo({
-      ano: dataAnterior.getFullYear(),
-      mes: dataAnterior.getMonth() + 1,
-    });
-    const resumoAnterior = await financeiro.resumoPeriodo(iniAnt, fimAnt);
+    limitesMesAnterior = limitesDoPeriodo({ ano: dataAnterior.getFullYear(), mes: dataAnterior.getMonth() + 1 });
+  }
+
+  // Todos esses resumos sao independentes entre si - resolvidos em paralelo e
+  // reaproveitando o mapa de custo ja calculado acima, em vez de uma consulta
+  // de custo por chamada (eram ate 8 chamadas sequenciais de resumoPeriodo
+  // antes dessa mudanca: anual + 6 meses da tendencia + comparativo).
+  const [resumoAnual, distribuicaoRecebida, pendenteGeralValor, resumosTendencia, resumoAnterior] = await Promise.all([
+    financeiro.resumoPeriodo(limitesAno.inicio, limitesAno.fim, undefined, false, custoMapa),
+    financeiro.distribuicaoDinheiroRecebido(inicio, fim, custoMapa),
+    financeiro.pendenteGeral(),
+    Promise.all(
+      mesesTendencia.map((m) => {
+        const { inicio: ini, fim: f } = limitesDoPeriodo({ ano: m.ano, mes: m.mes, categoria: undefined, pagamento: "todos" });
+        return financeiro.resumoPeriodo(ini, f, undefined, false, custoMapa);
+      })
+    ),
+    limitesMesAnterior
+      ? financeiro.resumoPeriodo(limitesMesAnterior.inicio, limitesMesAnterior.fim, undefined, false, custoMapa)
+      : Promise.resolve(null),
+  ]);
+
+  const recebidoNoPeriodo = distribuicaoRecebida.recebido;
+  const tendencia = mesesTendencia.map((m, i) => ({ rotulo: m.rotulo, a: resumosTendencia[i].faturamento, b: resumosTendencia[i].lucroGerado }));
+
+  let comparativo: { atual: number; anterior: number; variacao: number } | null = null;
+  if (resumoAnterior) {
     const variacao = resumoAnterior.faturamento > 0 ? ((faturamento - resumoAnterior.faturamento) / resumoAnterior.faturamento) * 100 : 0;
     comparativo = { atual: faturamento, anterior: resumoAnterior.faturamento, variacao };
   }
@@ -146,8 +169,6 @@ export default async function DashboardPage({
     .map(([rotulo, valor]) => ({ rotulo, valor }))
     .sort((a, b) => b.valor - a.valor)
     .slice(0, 6);
-
-  const categorias = await produtosLib.listarCategorias();
 
   return (
     <div className="space-y-6">
