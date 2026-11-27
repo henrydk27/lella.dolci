@@ -3,6 +3,7 @@ import { Cartao } from "@/components/ui/Cartao";
 import { Tabela, TabelaCabecalho, TabelaLinha, TabelaCelula, TabelaVazia } from "@/components/ui/Tabela";
 import * as pedidos from "@/lib/pedidos";
 import * as clientes from "@/lib/clientes";
+import { BotaoEnviarAlertaDevedores } from "./BotaoEnviarAlertaDevedores";
 
 function dataBr(isoData: string) {
   return isoData.split("-").reverse().join("/");
@@ -39,8 +40,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <div className="flex items-start justify-between gap-4">
+        <h2 className="font-titulo text-xl text-terracota-vibrante">Resumo geral</h2>
+        <BotaoEnviarAlertaDevedores />
+      </div>
+
       <div>
-        <h2 className="mb-4 font-titulo text-xl text-terracota-vibrante">Resumo geral</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <CartaoIndicador
             titulo="Vendido este mês"
